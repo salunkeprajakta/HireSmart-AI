@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Notifications - HireSmart AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .notification {
+            background: white;
+            padding: 22px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .status {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .applied {
+            color: #1f3c88;
+        }
+
+        .shortlisted {
+            color: green;
+        }
+
+        .rejected {
+            color: red;
+        }
+
+        .empty {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 20px;
+            background: #1f3c88;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <div>
+        <span>Welcome, {{ name }}</span>
+
+        &nbsp;&nbsp;
+
+        <a href="/logout">Logout</a>
+    </div>
+
+</div>
+
+
+<div class="container">
+
+    <h1>🔔 Notifications</h1>
+
+    {% if notifications %}
+
+        {% for notification in notifications %}
+
+            <div class="notification">
+
+                {% if notification.status == "Shortlisted" %}
+
+                    <div class="status shortlisted">
+                        🎉 You have been shortlisted!
+                    </div>
+
+                    <p>
+                        You have been shortlisted for
+                        <strong>{{ notification.title }}</strong>
+                        at
+                        <strong>{{ notification.company }}</strong>.
+                    </p>
+
+                {% elif notification.status == "Rejected" %}
+
+                    <div class="status rejected">
+                        ❌ Application Update
+                    </div>
+
+                    <p>
+                        Your application for
+                        <strong>{{ notification.title }}</strong>
+                        at
+                        <strong>{{ notification.company }}</strong>
+                        was not selected.
+                    </p>
+
+                {% else %}
+
+                    <div class="status applied">
+                        📩 Application Submitted
+                    </div>
+
+                    <p>
+                        Your application for
+                        <strong>{{ notification.title }}</strong>
+                        at
+                        <strong>{{ notification.company }}</strong>
+                        has been submitted successfully.
+                    </p>
+
+                {% endif %}
+
+                <small>
+                    Status: {{ notification.status }}
+                    <br>
+                    Applied: {{ notification.applied_at }}
+                </small>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty">
+
+            <h2>🔔 No Notifications</h2>
+
+            <p>
+                You don't have any notifications yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+    <a href="/dashboard" class="back">
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+</body>
+
+</html>

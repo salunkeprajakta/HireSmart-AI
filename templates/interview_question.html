@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>HireSmart AI - Mock Interview</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+
+            box-shadow:
+                0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .progress {
+            color: #1f3c88;
+            font-weight: bold;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .question {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+
+            margin: 30px 0;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 180px;
+
+            padding: 15px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 8px;
+
+            font-size: 16px;
+
+            box-sizing: border-box;
+
+            resize: vertical;
+        }
+
+        button {
+            background: #1f3c88;
+            color: white;
+
+            border: none;
+
+            padding: 13px 25px;
+
+            border-radius: 7px;
+
+            cursor: pointer;
+
+            font-size: 16px;
+
+            margin-top: 20px;
+        }
+
+        .error {
+            color: red;
+            margin-top: 15px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="navbar">
+
+        <h2>HireSmart AI</h2>
+
+        <a href="/logout">
+            Logout
+        </a>
+
+    </div>
+
+
+    <div class="container">
+
+        <div class="card">
+
+            <div class="progress">
+
+                Question {{ number }} of {{ total }}
+
+            </div>
+
+
+            <h1>
+                🎤 Mock Interview
+            </h1>
+
+
+            <div class="question">
+
+                {{ question }}
+
+            </div>
+
+
+            <form method="POST">
+
+                <textarea
+                    name="answer"
+                    placeholder="Type your answer here..."
+                    required
+                ></textarea>
+
+
+                {% if error %}
+
+                <div class="error">
+                    {{ error }}
+                </div>
+
+                {% endif %}
+
+
+                <button type="submit">
+
+                    {% if number == total %}
+                        Finish Interview
+                    {% else %}
+                        Next Question →
+                    {% endif %}
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

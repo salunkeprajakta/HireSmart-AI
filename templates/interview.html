@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Resume Interview</title>
+</head>
+
+<body>
+
+    <h2>🤖 AI Resume-Based Interview</h2>
+
+    {% if filename %}
+
+        <p>
+            Resume detected:
+            <strong>{{ filename }}</strong>
+        </p>
+
+        <p>
+            Gemini AI will analyze your resume and
+            generate personalized interview questions.
+        </p>
+
+        <form method="POST">
+
+            <input type="hidden"
+                   name="interview_type"
+                   value="resume">
+
+            <button type="submit">
+                🚀 Start Resume Interview
+            </button>
+
+        </form>
+
+    {% else %}
+
+        <p style="color:red;">
+            ⚠️ No resume uploaded.
+        </p>
+
+        <a href="{{ url_for('upload_resume') }}">
+            Upload Resume First
+        </a>
+
+    {% endif %}
+
+    {% if error %}
+
+        <p style="color:red;">
+            {{ error }}
+        </p>
+
+    {% endif %}
+
+</body>
+</html>

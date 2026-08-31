@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>HireSmart AI - Candidate Dashboard</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            padding: 30px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #1f3c88;
+            margin-top: 0;
+        }
+
+        .card p {
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .card a {
+            text-decoration: none;
+        }
+
+        button {
+            background: #1f3c88;
+            color: white;
+
+            border: none;
+
+            padding: 10px 15px;
+
+            border-radius: 5px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 900px) {
+
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+        }
+        .notification-badge {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+    </style>
+
+</head>
+
+<body>
+
+
+<!-- NAVBAR -->
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <a href="{{ url_for('logout') }}">
+        Logout
+    </a>
+
+</div>
+
+
+<!-- MAIN -->
+
+<div class="container">
+
+    <h1>
+        Welcome, {{ name }} 👋
+    </h1>
+
+    <p>
+        Candidate Dashboard
+    </p>
+
+
+    <div class="cards">
+
+
+        <!-- PROFILE -->
+
+        <div class="card">
+
+            <h3>👤 My Profile</h3>
+
+            <p>
+                Manage your profile and skills.
+            </p>
+
+            <a href="{{ url_for('profile') }}">
+                <button type="button">
+                    View Profile
+                </button>
+            </a>
+
+        </div>
+
+
+        <!-- UPLOAD RESUME -->
+
+        <div class="card">
+
+            <h3>📄 Upload Resume</h3>
+
+            <p>
+                Upload your resume for analysis.
+            </p>
+
+            <a href="{{ url_for('upload_resume') }}">
+                <button type="button">
+                    Upload Resume
+                </button>
+            </a>
+
+        </div>
+
+
+        <!-- RESUME ANALYSIS -->
+
+        <div class="card">
+
+            <h3>🤖 AI Resume Analysis</h3>
+
+            <p>
+                Analyze your resume using AI.
+            </p>
+
+            <a href="{{ url_for('resume_analysis') }}">
+                <button type="button">
+                    Analyze Resume
+                </button>
+            </a>
+
+        </div>
+
+
+        <!-- JOBS -->
+
+        <div class="card">
+
+            <h3>💼 Recommended Jobs</h3>
+
+            <p>
+                Find jobs matching your skills.
+            </p>
+            <p>
+    <a href="/my_applications">
+        📋 My Applications
+    </a>
+</p>
+<p>
+    <a href="/notifications">
+    🔔 Notifications
+
+    {% if notification_count > 0 %}
+        <span class="notification-badge">
+            {{ notification_count }}
+        </span>
+    {% endif %}
+</a>
+
+            <a href="{{ url_for('jobs') }}">
+                <button type="button">
+                    View Jobs
+                </button>
+            </a>
+
+        </div>
+
+
+        <!-- SKILL ANALYSIS -->
+
+        <div class="card">
+
+            <h3>📊 Skill Analysis</h3>
+
+            <p>
+                Check your skills and identify skill gaps.
+            </p>
+
+            <a href="/skill_analysis">
+                <button type="button">
+                    Skill Analysis
+                </button>
+            </a>
+
+        </div>
+
+
+        <!-- INTERVIEW -->
+
+        <div class="card">
+
+            <h3>🎤 Interview Preparation</h3>
+
+            <p>
+                Practice interview questions with AI.
+            </p>
+
+            <a href="/interview">
+    <button type="button">
+        🎤 Start Interview
+    </button>
+</a>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

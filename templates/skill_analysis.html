@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>HireSmart AI - Skill Analysis</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+
+            box-shadow:
+                0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        h2 {
+            color: #1f3c88;
+        }
+
+        .score {
+            font-size: 50px;
+            font-weight: bold;
+            color: #1f3c88;
+        }
+
+        .skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .skill {
+            background: #e8edff;
+            color: #1f3c88;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .missing {
+            background: #f1f1f1;
+            color: #555;
+            padding: 10px 15px;
+            border-radius: 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 10px;
+            color: #1f3c88;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="navbar">
+
+        <h2>HireSmart AI</h2>
+
+        <a href="/logout">
+            Logout
+        </a>
+
+    </div>
+
+
+    <div class="container">
+
+        <div class="card">
+
+            <h1>📊 Skill Analysis</h1>
+
+            <p>
+                Resume:
+                <strong>{{ filename }}</strong>
+            </p>
+
+            <p>Your Skill Score</p>
+
+            <div class="score">
+                {{ score }}%
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>✅ Skills Found</h2>
+
+            {% if found_skills %}
+
+                <div class="skills">
+
+                    {% for skill in found_skills %}
+
+                        <div class="skill">
+                            {{ skill }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <p>No matching skills found.</p>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>💡 Recommended Skills</h2>
+
+            {% if missing_skills %}
+
+                <div class="skills">
+
+                    {% for skill in missing_skills %}
+
+                        <div class="missing">
+                            {{ skill }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <p>
+                    Excellent! Your resume contains
+                    all the checked skills.
+                </p>
+
+            {% endif %}
+
+        </div>
+
+
+        <a
+            href="/dashboard"
+            class="back"
+        >
+            ← Back to Dashboard
+        </a>
+
+    </div>
+
+</body>
+
+</html>

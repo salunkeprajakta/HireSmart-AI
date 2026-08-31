@@ -1,0 +1,5 @@
+Flask
+pypdf
+python-docx
+Werkzeug
+google-genai

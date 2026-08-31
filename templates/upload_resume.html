@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HireSmart AI - Upload Resume</title>
+</head>
+
+<body>
+
+    <h1>Upload Resume</h1>
+
+    <p>Upload your resume in PDF, DOC, or DOCX format.</p>
+
+    <form action="/upload_resume" method="POST" enctype="multipart/form-data">
+
+        <input
+            type="file"
+            name="resume"
+            accept=".pdf,.doc,.docx"
+            required
+        >
+
+        <br><br>
+
+        <button type="submit">
+            Upload Resume
+        </button>
+
+    </form>
+
+    <br>
+
+    <a href="/dashboard">Back to Dashboard</a>
+
+</body>
+</html>

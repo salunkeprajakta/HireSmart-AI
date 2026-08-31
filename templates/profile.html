@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HireSmart AI - My Profile</title>
+</head>
+
+<body>
+
+    <h1>My Profile</h1>
+
+    <p>
+        <strong>Name:</strong>
+        {{ user["name"] }}
+    </p>
+
+    <p>
+        <strong>Email:</strong>
+        {{ user["email"] }}
+    </p>
+
+    <form action="/profile" method="POST">
+
+        <label>Phone:</label><br>
+        <input type="text" name="phone" value="{{ user['phone'] or '' }}">
+
+        <br><br>
+
+        <label>Education:</label><br>
+        <input type="text" name="education" value="{{ user['education'] or '' }}">
+
+        <br><br>
+
+        <label>Skills:</label><br>
+        <textarea name="skills">{{ user['skills'] or '' }}</textarea>
+
+        <br><br>
+
+        <label>Experience:</label><br>
+        <textarea name="experience">{{ user['experience'] or '' }}</textarea>
+
+        <br><br>
+
+        <button type="submit">Save Profile</button>
+
+    </form>
+
+    <br>
+
+    <a href="/dashboard">Back to Dashboard</a>
+
+</body>
+</html>

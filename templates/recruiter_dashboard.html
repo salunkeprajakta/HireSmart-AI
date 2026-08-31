@@ -1,0 +1,344 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recruiter Dashboard - HireSmart AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .welcome {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        .welcome h1 {
+            color: #1f3c88;
+            margin-top: 0;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            flex: 1;
+            min-width: 220px;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h2 {
+            font-size: 35px;
+            color: #1f3c88;
+            margin: 10px 0;
+        }
+
+        .stat-card p {
+            margin: 0;
+            color: #555;
+        }
+
+        .actions {
+            margin-top: 30px;
+        }
+
+        .actions h2 {
+            color: #1f3c88;
+        }
+
+        .action-grid {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .action-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 250px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        .action-card h3 {
+            color: #1f3c88;
+        }
+
+        .button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 12px 18px;
+            background: #1f3c88;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+
+        .button:hover {
+            background: #162d68;
+        }
+
+        .jobs {
+            margin-top: 30px;
+        }
+
+        .job-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .job-card h3 {
+            color: #1f3c88;
+            margin-top: 0;
+        }
+
+        .empty {
+            background: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <a href="/logout">
+        Logout
+    </a>
+
+</div>
+
+
+<div class="container">
+
+    <!-- WELCOME -->
+
+    <div class="welcome">
+
+        <h1>Welcome, {{ name }}! 👋</h1>
+
+        <p>
+            <strong>Email:</strong> {{ email }}
+        </p>
+
+        <p>
+            <strong>Role:</strong> Recruiter
+        </p>
+
+        <p>
+            Manage your job postings and candidates from your dashboard.
+        </p>
+
+    </div>
+
+
+    <!-- STATISTICS -->
+
+    <div class="stats">
+
+        <div class="stat-card">
+
+            <p>📢 Total Jobs</p>
+
+            <h2>
+                {{ jobs|length }}
+            </h2>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <p>👥 Applications</p>
+
+            <h2>
+                {{ total_applications }}
+            </h2>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <p>📝 Active Jobs</p>
+
+            <h2>
+                {{ jobs|length }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <!-- ACTIONS -->
+
+    <div class="actions">
+
+        <h2>Recruiter Actions</h2>
+
+        <div class="action-grid">
+
+            <div class="action-card">
+
+                <h3>📢 Post New Job</h3>
+
+                <p>
+                    Create a new job vacancy and find suitable candidates.
+                </p>
+
+                <a
+                    class="button"
+                    href="/recruiter/post_job"
+                >
+                    Post Job
+                </a>
+
+            </div>
+
+
+            <div class="action-card">
+
+                <h3>📋 My Posted Jobs</h3>
+
+                <p>
+                    View and manage all jobs posted by you.
+                </p>
+
+                <a
+                    class="button"
+                    href="/recruiter/jobs"
+                >
+                    View Jobs
+                </a>
+
+            </div>
+
+
+            <div class="action-card">
+
+                <h3>👥 View Candidates</h3>
+
+                <p>
+                    View candidates who have applied to your jobs.
+                </p>
+
+                <a
+                    class="button"
+                    href="/recruiter/candidates"
+                >
+                    View Candidates
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- RECENT JOBS -->
+
+    <div class="jobs">
+
+        <h2>📋 Recently Posted Jobs</h2>
+
+        {% if jobs %}
+
+            {% for job in jobs[:5] %}
+
+            <div class="job-card">
+
+                <h3>
+                    {{ job["title"] }}
+                </h3>
+
+                <p>
+                    🏢 {{ job["company"] }}
+                </p>
+
+                <p>
+                    📍 {{ job["location"] }}
+                </p>
+
+                <p>
+                    🛠️ {{ job["skills"] }}
+                </p>
+
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="empty">
+
+                <h3>No Jobs Posted Yet</h3>
+
+                <p>
+                    Start by posting your first job.
+                </p>
+
+                <a
+                    class="button"
+                    href="/recruiter/post_job"
+                >
+                    📢 Post First Job
+                </a>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+</body>
+</html>

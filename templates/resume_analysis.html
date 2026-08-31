@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resume Analysis - HireSmart AI</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6fb;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #23438f;
+            margin-bottom: 10px;
+        }
+
+        .header h2 {
+            color: #333;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .score-card {
+            background: white;
+            margin-top: 20px;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .score {
+            font-size: 60px;
+            font-weight: bold;
+            color: #23438f;
+        }
+
+        .score-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .section {
+            background: white;
+            margin-top: 20px;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .section h2 {
+            color: #23438f;
+            margin-top: 0;
+        }
+
+        .skill {
+            display: inline-block;
+            background: #e8eefc;
+            color: #23438f;
+            padding: 9px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .missing {
+            display: inline-block;
+            background: #ffecec;
+            color: #c62828;
+            padding: 9px 15px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .info-card {
+            border: 1px solid #e1e5ef;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-card h3 {
+            color: #23438f;
+            margin-bottom: 10px;
+        }
+
+        .detected {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        li {
+            margin: 12px 0;
+            color: #444;
+        }
+
+        .button-area {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 13px 25px;
+            margin: 8px;
+            background: #23438f;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .button:hover {
+            background: #182f6b;
+        }
+
+        .secondary {
+            background: #555;
+        }
+
+        .secondary:hover {
+            background: #333;
+        }
+
+        @media (max-width: 700px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button {
+                display: block;
+                margin: 10px auto;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <h1>🤖 HireSmart AI</h1>
+
+        <h2>Resume Analysis</h2>
+
+        {% if filename %}
+            <p>
+                <strong>Resume:</strong> {{ filename }}
+            </p>
+        {% endif %}
+
+    </div>
+
+
+    <!-- RESUME SCORE -->
+    <div class="score-card">
+
+        <div class="score">
+            {{ score }}/100
+        </div>
+
+        <div class="score-text">
+            Overall Resume Score
+        </div>
+
+    </div>
+
+
+    <!-- SKILLS FOUND -->
+    <div class="section">
+
+        <h2>✅ Skills Found</h2>
+
+        {% if skills %}
+
+            {% for skill in skills %}
+
+                <span class="skill">
+                    {{ skill }}
+                </span>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p>No technical skills detected.</p>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- RECOMMENDED SKILLS -->
+    <div class="section">
+
+        <h2>📌 Recommended Skills</h2>
+
+        {% if missing_skills %}
+
+            {% for skill in missing_skills %}
+
+                <span class="missing">
+                    {{ skill }}
+                </span>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p>
+                Great! No additional skills recommended.
+            </p>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- RESUME INFORMATION -->
+    <div class="section">
+
+        <h2>📄 Resume Information</h2>
+
+        <div class="info-grid">
+
+            <div class="info-card">
+
+                <h3>🎓 Education</h3>
+
+                <p class="detected">
+                    Analyzed
+                </p>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <h3>💼 Experience</h3>
+
+                <p class="detected">
+                    Analyzed
+                </p>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <h3>🚀 Projects</h3>
+
+                <p class="detected">
+                    Analyzed
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- IMPROVEMENT SUGGESTIONS -->
+    <div class="section">
+
+        <h2>💡 Resume Improvement Suggestions</h2>
+
+        {% if suggestions %}
+
+            <ul>
+
+                {% for suggestion in suggestions %}
+
+                    <li>
+                        {{ suggestion }}
+                    </li>
+
+                {% endfor %}
+
+            </ul>
+
+        {% else %}
+
+            <p>
+                Your resume looks good.
+            </p>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- NEXT STEP -->
+    <div class="section">
+
+        <h2>🎤 Next Step</h2>
+
+        <p>
+            Continue to the AI-powered interview process
+            based on your resume and skills.
+        </p>
+
+        <div class="button-area">
+
+    <a href="{{ url_for('upload_resume') }}"
+       class="button secondary">
+        Upload Another Resume
+    </a>
+
+    <a href="{{ url_for('recruiter_dashboard') }}"
+       class="button secondary">
+        Back to Dashboard
+    </a>
+
+    <a href="{{ url_for('interview') }}"
+       class="button">
+        🎤 Start AI Interview →
+    </a>
+
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

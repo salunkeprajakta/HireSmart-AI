@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Resume Uploaded - HireSmart AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 80px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .icon {
+            font-size: 60px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .filename {
+            background: #f0f2f8;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        button {
+            background: #1f3c88;
+            color: white;
+            border: none;
+            padding: 13px 25px;
+            border-radius: 7px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 8px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="card">
+
+            <div class="icon">
+                ✅
+            </div>
+
+            <h1>Resume Uploaded Successfully!</h1>
+
+            <p>Your resume has been uploaded successfully.</p>
+
+            <div class="filename">
+                <strong>{{ filename }}</strong>
+            </div>
+
+            <a href="{{ url_for('resume_analysis') }}">
+                <button>Analyze Resume</button>
+            </a>
+
+            <a href="{{ url_for('interview') }}">
+                <button>Start AI Interview</button>
+            </a>
+
+            <br>
+
+            <a href="{{ url_for('dashboard') }}">
+                <button>Back to Dashboard</button>
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

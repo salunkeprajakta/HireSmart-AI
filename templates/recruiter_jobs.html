@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Posted Jobs - HireSmart AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .job-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        .job-card h2 {
+            color: #1f3c88;
+            margin-top: 0;
+        }
+
+        .info {
+            margin: 10px 0;
+        }
+
+        .skills {
+            background: #eef2ff;
+            padding: 10px;
+            border-radius: 7px;
+            margin-top: 12px;
+        }
+
+        .count {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .empty {
+            background: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 18px;
+            background: #1f3c88;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1f3c88;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <a href="/logout">Logout</a>
+
+</div>
+
+<div class="container">
+
+    <h1>📋 My Posted Jobs</h1>
+
+    {% if jobs %}
+
+        {% for job in jobs %}
+
+        <div class="job-card">
+
+            <h2>{{ job["title"] }}</h2>
+
+            <div class="info">
+                🏢 <strong>Company:</strong>
+                {{ job["company"] }}
+            </div>
+
+            <div class="info">
+                📍 <strong>Location:</strong>
+                {{ job["location"] }}
+            </div>
+
+            <div class="skills">
+                🛠️ <strong>Required Skills:</strong>
+                {{ job["skills"] }}
+            </div>
+
+            {% if job["description"] %}
+
+            <div class="info">
+                📝 <strong>Description:</strong>
+                {{ job["description"] }}
+            </div>
+
+            {% endif %}
+
+            <div class="count">
+                👥 Applications:
+                {{ job["application_count"] }}
+            </div>
+
+            <div class="info">
+                📅 <strong>Posted:</strong>
+                {{ job["created_at"] }}
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty">
+
+            <h2>No Jobs Posted Yet</h2>
+
+            <p>You haven't posted any jobs.</p>
+
+            <a class="button" href="/recruiter/post_job">
+                📢 Post Your First Job
+            </a>
+
+        </div>
+
+    {% endif %}
+
+    <a class="back" href="/recruiter/dashboard">
+        ← Back to Recruiter Dashboard
+    </a>
+
+</div>
+
+</body>
+</html>

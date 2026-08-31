@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>My Applications - HireSmart AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .application-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .job-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #222;
+        }
+
+        .info {
+            margin-top: 10px;
+            color: #555;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 18px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .applied {
+            background: #eef2ff;
+            color: #1f3c88;
+        }
+
+        .shortlisted {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .date {
+            margin-top: 15px;
+            color: #777;
+            font-size: 14px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 11px 22px;
+            background: #555;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+
+        .no-applications {
+            background: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 15px;
+        }
+
+        .jobs-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 11px 22px;
+            background: #1f3c88;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <div>
+        Welcome, {{ name }}
+
+        <a href="/dashboard">Dashboard</a>
+
+        <a href="/logout">Logout</a>
+    </div>
+
+</div>
+
+
+<div class="container">
+
+    <h1>📄 My Applications</h1>
+
+    <p>
+        Track the jobs you have applied for and their current status.
+    </p>
+
+
+    {% if applications %}
+
+        {% for application in applications %}
+
+            <div class="application-card">
+
+                <div class="job-title">
+                    💼 {{ application.title }}
+                </div>
+
+                <div class="info">
+                    🏢 <strong>Company:</strong>
+                    {{ application.company }}
+                </div>
+
+                <div class="info">
+                    📍 <strong>Location:</strong>
+                    {{ application.location }}
+                </div>
+
+                <div class="info">
+                    🛠️ <strong>Required Skills:</strong>
+                    {{ application.skills }}
+                </div>
+
+
+                {% if application.status == "Shortlisted" %}
+
+                    <div class="status shortlisted">
+                        🎉 You have been shortlisted!
+                    </div>
+
+                {% elif application.status == "Rejected" %}
+
+                    <div class="status rejected">
+                        ❌ Application Rejected
+                    </div>
+
+                {% else %}
+
+                    <div class="status applied">
+                        📌 Application Submitted
+                    </div>
+
+                {% endif %}
+
+
+                <div class="date">
+                    📅 Applied on:
+                    {{ application.applied_at }}
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="no-applications">
+
+            <h2>📭 No Applications Yet</h2>
+
+            <p>
+                You haven't applied for any jobs yet.
+            </p>
+
+            <a href="/jobs" class="jobs-btn">
+                💼 Browse Jobs
+            </a>
+
+        </div>
+
+    {% endif %}
+
+
+    <br>
+
+    <a href="/dashboard" class="back-btn">
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+</body>
+
+</html>

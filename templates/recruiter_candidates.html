@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Candidates - HireSmart AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .candidate-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        .candidate-card h2 {
+            color: #1f3c88;
+            margin-top: 0;
+        }
+
+        .info {
+            margin: 9px 0;
+        }
+
+        .job {
+            background: #eef2ff;
+            padding: 12px;
+            border-radius: 7px;
+            margin: 15px 0;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .applied {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .shortlisted {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .actions {
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 10px 16px;
+            border-radius: 7px;
+            color: white;
+            cursor: pointer;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .shortlist-btn {
+            background: #28a745;
+        }
+
+        .reject-btn {
+            background: #dc3545;
+        }
+
+        .empty {
+            background: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1f3c88;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+
+    <h2>HireSmart AI</h2>
+
+    <a href="/logout">Logout</a>
+
+</div>
+
+<div class="container">
+
+    <h1>👥 View Candidates</h1>
+
+    {% if candidates %}
+
+        {% for candidate in candidates %}
+
+        <div class="candidate-card">
+
+            <h2>👤 {{ candidate["name"] }}</h2>
+
+            <div class="info">
+                📧 <strong>Email:</strong>
+                {{ candidate["email"] }}
+            </div>
+
+            {% if candidate["phone"] %}
+            <div class="info">
+                📱 <strong>Phone:</strong>
+                {{ candidate["phone"] }}
+            </div>
+            {% endif %}
+
+            {% if candidate["education"] %}
+            <div class="info">
+                🎓 <strong>Education:</strong>
+                {{ candidate["education"] }}
+            </div>
+            {% endif %}
+
+            {% if candidate["skills"] %}
+            <div class="info">
+                🛠️ <strong>Skills:</strong>
+                {{ candidate["skills"] }}
+            </div>
+            {% endif %}
+
+            {% if candidate["experience"] %}
+            <div class="info">
+                💼 <strong>Experience:</strong>
+                {{ candidate["experience"] }}
+            </div>
+            {% endif %}
+
+            <div class="job">
+
+                <strong>Applied For:</strong>
+                {{ candidate["job_title"] }}
+
+                <br>
+
+                🏢 {{ candidate["company"] }}
+
+                <br>
+
+                📅 Applied:
+                {{ candidate["applied_at"] }}
+
+            </div>
+
+            <div>
+
+                <strong>Status:</strong>
+
+                {% if candidate["status"] == "Shortlisted" %}
+
+                    <span class="status shortlisted">
+                        ✅ Shortlisted
+                    </span>
+
+                {% elif candidate["status"] == "Rejected" %}
+
+                    <span class="status rejected">
+                        ❌ Rejected
+                    </span>
+
+                {% else %}
+
+                    <span class="status applied">
+                        🕐 Applied
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+            <div class="actions">
+
+                <form
+                    method="POST"
+                    action="/recruiter/application/{{ candidate['application_id'] }}/Shortlisted"
+                    style="display:inline;"
+                >
+
+                    <button
+                        type="submit"
+                        class="action-btn shortlist-btn"
+                    >
+                        ✅ Shortlist
+                    </button>
+
+                </form>
+
+                <form
+                    method="POST"
+                    action="/recruiter/application/{{ candidate['application_id'] }}/Rejected"
+                    style="display:inline;"
+                >
+
+                    <button
+                        type="submit"
+                        class="action-btn reject-btn"
+                    >
+                        ❌ Reject
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty">
+
+            <h2>No Candidates Yet</h2>
+
+            <p>
+                No candidates have applied for your jobs yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+    <a
+        class="back"
+        href="/recruiter/dashboard"
+    >
+        ← Back to Recruiter Dashboard
+    </a>
+
+</div>
+
+</body>
+</html>

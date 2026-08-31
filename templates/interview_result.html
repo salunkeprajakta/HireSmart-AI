@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interview Result - HireSmart AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+        }
+
+        .icon {
+            font-size: 65px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .score {
+            font-size: 55px;
+            font-weight: bold;
+            color: #1f3c88;
+            margin: 20px;
+        }
+
+        .details {
+            font-size: 20px;
+            margin: 15px;
+        }
+
+        .message {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 25px;
+        }
+
+        .buttons {
+            margin-top: 30px;
+        }
+
+        button {
+            background: #1f3c88;
+            color: white;
+            border: none;
+            padding: 13px 22px;
+            margin: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #162d68;
+        }
+
+        a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+        <h2>HireSmart AI</h2>
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="container">
+
+        <div class="card">
+
+            <div class="icon">
+                🎯
+            </div>
+
+            <h1>Interview Result</h1>
+
+            <p>Hello <strong>{{ name }}</strong>!</p>
+
+            <div class="score">
+                {{ percentage }}%
+            </div>
+
+            <div class="details">
+                Score: <strong>{{ score }}</strong> / {{ total }}
+            </div>
+
+            <div class="message">
+                {{ message }}
+            </div>
+
+            <div class="buttons">
+
+                <a href="/interview">
+                    <button>
+                        🔄 Take Interview Again
+                    </button>
+                </a>
+
+                <a href="/dashboard">
+                    <button>
+                        🏠 Back to Dashboard
+                    </button>
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

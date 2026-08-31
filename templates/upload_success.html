@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Upload Successful - HireSmart AI</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 70px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 45px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .success {
+            font-size: 65px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .filename {
+            background: #f0f2f8;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #1f3c88;
+            color: white;
+            padding: 12px 22px;
+            margin: 8px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+
+        <h2>HireSmart AI</h2>
+
+        <a href="/logout">
+            Logout
+        </a>
+
+    </div>
+
+
+    <div class="container">
+
+        <div class="card">
+
+            <div class="success">
+                ✅
+            </div>
+
+            <h1>
+                Resume Uploaded Successfully!
+            </h1>
+
+            <p>
+                Your resume has been uploaded successfully.
+            </p>
+
+            <div class="filename">
+                📄 {{ filename }}
+            </div>
+
+            <a href="/resume_analysis" class="btn">
+                🤖 Analyze Resume
+            </a>
+
+            <a href="/dashboard" class="btn">
+                ← Dashboard
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

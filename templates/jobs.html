@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Recommended Jobs - HireSmart AI</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .welcome {
+            color: #555;
+            margin-bottom: 30px;
+        }
+
+        .job-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .job-title {
+            font-size: 23px;
+            font-weight: bold;
+            color: #222;
+        }
+
+        .company {
+            color: #555;
+            margin-top: 8px;
+        }
+
+        .location {
+            color: #777;
+            margin-top: 8px;
+        }
+
+        .match {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f3c88;
+        }
+
+        .skills {
+            margin-top: 20px;
+        }
+
+        .skill {
+            display: inline-block;
+            background: #eef2ff;
+            color: #1f3c88;
+            padding: 7px 12px;
+            margin: 5px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .matched {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .apply-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 11px 22px;
+            background: #1f3c88;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .apply-btn:hover {
+            background: #162d68;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 11px 22px;
+            background: #555;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+
+        .no-jobs {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="navbar">
+
+        <h2>HireSmart AI</h2>
+
+        <div>
+
+            <span>Welcome, {{ name }}</span>
+
+            <a href="/dashboard">
+                Dashboard
+            </a>
+
+            <a href="/logout">
+                Logout
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <div class="container">
+
+        <h1>💼 Recommended Jobs</h1>
+
+        <p class="welcome">
+            Jobs recommended according to your resume skills.
+        </p>
+
+
+        {% if jobs %}
+
+            {% for job in jobs %}
+
+                <div class="job-card">
+
+                    <div class="job-header">
+
+                        <div>
+
+                            <div class="job-title">
+                                {{ job.title }}
+                            </div>
+
+                            <div class="company">
+                                🏢 {{ job.company }}
+                            </div>
+
+                            <div class="location">
+                                📍 {{ job.location }}
+                            </div>
+
+                        </div>
+
+
+                        <div class="match">
+
+                            {{ job.match }}% Match
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="skills">
+
+                        <strong>Required Skills:</strong>
+
+                        <br>
+
+                        {% for skill in job.skills %}
+
+                            {% if skill in job.matched_skills %}
+
+                                <span class="skill matched">
+                                    ✓ {{ skill }}
+                                </span>
+
+                            {% else %}
+
+                                <span class="skill">
+                                    {{ skill }}
+                                </span>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                    </div>
+
+
+                    {% if job.database_job %}
+
+                        <form
+                            method="POST"
+                            action="/apply/{{ job.id }}"
+                        >
+
+                            <button
+                                type="submit"
+                                class="apply-btn"
+                            >
+                                Apply Now
+                            </button>
+
+                        </form>
+
+                    {% endif %}
+
+
+                    {% if job.description %}
+
+                        <p>
+                            <strong>Job Description:</strong>
+                        </p>
+
+                        <p>
+                            {{ job.description }}
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="no-jobs">
+
+                <h2>No Jobs Available</h2>
+
+                <p>
+                    Upload your resume to get job recommendations.
+                </p>
+
+                <a
+                    href="/upload_resume"
+                    class="apply-btn"
+                >
+                    Upload Resume
+                </a>
+
+            </div>
+
+        {% endif %}
+
+
+        <br>
+
+        <a
+            href="/dashboard"
+            class="back-btn"
+        >
+            ← Back to Dashboard
+        </a>
+
+    </div>
+
+</body>
+
+</html>
