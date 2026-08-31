@@ -2337,7 +2337,7 @@ def interview():
             error=(
                 "Gemini AI is not configured. "
                 "Please add your Gemini API key "
-                "in app.py."
+                "in Render Environment Variables."
             )
         )
 
@@ -2353,8 +2353,8 @@ def interview():
             resume_uploaded=True,
             error=(
                 "Gemini could not generate interview "
-                "questions. Please check the terminal "
-                "for the exact Gemini error."
+                "questions. Please check the Render "
+                "logs for the exact Gemini error."
             )
         )
 
@@ -2580,7 +2580,7 @@ def test_gemini():
         </p>
 
         <p>
-        Add your API key in app.py.
+        Add GEMINI_API_KEY in Render Environment Variables.
         </p>
         """
 
@@ -2598,7 +2598,7 @@ def test_gemini():
         </p>
 
         <p>
-        Check the Flask terminal for the exact
+        Check the Render logs for the exact
         Gemini error message.
         </p>
         """
@@ -2631,13 +2631,20 @@ def logout():
 
 
 # =========================================================
+# INITIALIZE DATABASE
+# =========================================================
+
+create_table()
+
+
+# =========================================================
 # START APPLICATION
 # =========================================================
 
 if __name__ == "__main__":
 
-    create_table()
-
     app.run(
-        debug=True
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
     )
