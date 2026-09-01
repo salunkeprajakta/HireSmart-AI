@@ -1,56 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>AI Resume Interview</title>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Resume Interview - HireSmart AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-    <h2>🤖 AI Resume-Based Interview</h2>
+    <div class="interview-navbar">
 
-    {% if filename %}
+        <h2>HireSmart AI</h2>
 
-        <p>
-            Resume detected:
-            <strong>{{ filename }}</strong>
-        </p>
+        <a href="/logout">Logout</a>
 
-        <p>
-            Gemini AI will analyze your resume and
-            generate personalized interview questions.
-        </p>
+    </div>
 
-        <form method="POST">
+    <div class="interview-container">
 
-            <input type="hidden"
-                   name="interview_type"
-                   value="resume">
+        <div class="interview-card">
 
-            <button type="submit">
-                🚀 Start Resume Interview
-            </button>
+            <div class="interview-icon">
+                🤖
+            </div>
 
-        </form>
+            <h1>
+                AI Resume-Based Interview
+            </h1>
 
-    {% else %}
+            {% if resume %}
+            <p class="resume-info">
+                Resume detected:
+                <strong>{{ resume }}</strong>
+            </p>
+            {% endif %}
 
-        <p style="color:red;">
-            ⚠️ No resume uploaded.
-        </p>
+            <p class="interview-description">
+                Gemini AI will analyze your uploaded resume
+                and generate personalized interview questions.
+            </p>
 
-        <a href="{{ url_for('upload_resume') }}">
-            Upload Resume First
-        </a>
+            <form method="POST">
 
-    {% endif %}
+                <button type="submit" class="interview-button">
+                    🚀 Start Resume Interview
+                </button>
 
-    {% if error %}
+            </form>
 
-        <p style="color:red;">
-            {{ error }}
-        </p>
+            {% if error %}
 
-    {% endif %}
+            <div class="interview-error">
+                ⚠️ {{ error }}
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
 
 </body>
+
 </html>

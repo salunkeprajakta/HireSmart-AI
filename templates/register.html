@@ -1,51 +1,48 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>HireSmart AI - Register</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-```
-<h1>HireSmart AI</h1>
+    <div class="container">
 
-<h2>Create Account</h2>
+        <h1>HireSmart AI</h1>
 
-<form action="/register" method="POST">
+        <h2>Create Account</h2>
 
-    <label>Full Name</label><br>
-    <input type="text" name="name" required>
+        <form action="/register" method="POST">
 
-    <br><br>
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" required>
 
-    <label>Email</label><br>
-    <input type="email" name="email" required>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
 
-    <br><br>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
 
-    <label>Password</label><br>
-    <input type="password" name="password" required>
+            <label for="role">Role</label>
+            <select id="role" name="role" required>
+                <option value="Candidate">Candidate</option>
+                <option value="Recruiter">Recruiter</option>
+            </select>
 
-    <br><br>
+            <button type="submit">Register</button>
 
-    <label>Role</label><br>
+        </form>
 
-    <select name="role" required>
-        <option value="Candidate">Candidate</option>
-        <option value="Recruiter">Recruiter</option>
-    </select>
+        <p>
+            <a href="/login">Already have an account? Login</a>
+        </p>
 
-    <br><br>
-
-    <button type="submit">Register</button>
-
-</form>
-
-<br>
-
-<a href="/login">Already have an account? Login</a>
-```
+    </div>
 
 </body>
 </html>

@@ -460,6 +460,106 @@ def login():
 
 
 # =========================================================
+# FORGOT PASSWORD
+# =========================================================
+
+@app.route(
+    "/forgot-password",
+    methods=["GET", "POST"]
+)
+def forgot_password():
+
+    if request.method == "POST":
+
+        email = request.form.get(
+            "email",
+            ""
+        ).strip()
+
+        new_password = request.form.get(
+            "new_password",
+            ""
+        ).strip()
+
+        confirm_password = request.form.get(
+            "confirm_password",
+            ""
+        ).strip()
+
+        if not email or not new_password or not confirm_password:
+
+            return """
+            <h2>Please fill all fields.</h2>
+            <a href="/forgot-password">Go Back</a>
+            """
+
+        if len(new_password) < 6:
+
+            return """
+            <h2>Password must be at least 6 characters.</h2>
+            <a href="/forgot-password">Try Again</a>
+            """
+
+        if new_password != confirm_password:
+
+            return """
+            <h2>Passwords do not match.</h2>
+            <a href="/forgot-password">Try Again</a>
+            """
+
+        conn = get_db()
+
+        user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email = ?
+            """,
+            (email,)
+        ).fetchone()
+
+        if not user:
+
+            conn.close()
+
+            return """
+            <h2>Email not registered.</h2>
+            <p>Please enter a registered email address.</p>
+            <a href="/forgot-password">Try Again</a>
+            """
+
+        hashed_password = generate_password_hash(
+            new_password
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET password = ?
+            WHERE email = ?
+            """,
+            (
+                hashed_password,
+                email
+            )
+        )
+
+        conn.commit()
+
+        conn.close()
+
+        return """
+        <h2>Password Reset Successful! ✅</h2>
+        <p>Your password has been updated.</p>
+        <a href="/login">Go to Login</a>
+        """
+
+    return render_template(
+        "forgot_password.html"
+    )
+
+
+# =========================================================
 # CANDIDATE DASHBOARD
 # =========================================================
 
@@ -2635,6 +2735,16 @@ def logout():
 # =========================================================
 
 create_table()
+
+
+# =========================================================
+# SHOW REGISTERED ROUTES
+# =========================================================
+
+print("================================")
+print("REGISTERED FLASK ROUTES")
+print(app.url_map)
+print("================================")
 
 
 # =========================================================

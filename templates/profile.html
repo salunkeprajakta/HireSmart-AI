@@ -1,52 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>HireSmart AI - My Profile</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-    <h1>My Profile</h1>
+    <div class="container profile-container">
 
-    <p>
-        <strong>Name:</strong>
-        {{ user["name"] }}
-    </p>
+        <h1>My Profile</h1>
 
-    <p>
-        <strong>Email:</strong>
-        {{ user["email"] }}
-    </p>
+        <div class="profile-info">
 
-    <form action="/profile" method="POST">
+            <p>
+                <strong>Name:</strong>
+                {{ user["name"] }}
+            </p>
 
-        <label>Phone:</label><br>
-        <input type="text" name="phone" value="{{ user['phone'] or '' }}">
+            <p>
+                <strong>Email:</strong>
+                {{ user["email"] }}
+            </p>
 
-        <br><br>
+        </div>
 
-        <label>Education:</label><br>
-        <input type="text" name="education" value="{{ user['education'] or '' }}">
+        <form action="/profile" method="POST">
 
-        <br><br>
+            <label for="phone">Phone</label>
+            <input
+                type="text"
+                id="phone"
+                name="phone"
+                value="{{ user['phone'] or '' }}"
+            >
 
-        <label>Skills:</label><br>
-        <textarea name="skills">{{ user['skills'] or '' }}</textarea>
+            <label for="education">Education</label>
+            <input
+                type="text"
+                id="education"
+                name="education"
+                value="{{ user['education'] or '' }}"
+            >
 
-        <br><br>
+            <label for="skills">Skills</label>
+            <textarea
+                id="skills"
+                name="skills"
+                rows="4"
+            >{{ user['skills'] or '' }}</textarea>
 
-        <label>Experience:</label><br>
-        <textarea name="experience">{{ user['experience'] or '' }}</textarea>
+            <label for="experience">Experience</label>
+            <textarea
+                id="experience"
+                name="experience"
+                rows="4"
+            >{{ user['experience'] or '' }}</textarea>
 
-        <br><br>
+            <button type="submit">Save Profile</button>
 
-        <button type="submit">Save Profile</button>
+        </form>
 
-    </form>
+        <p>
+            <a href="/dashboard">← Back to Dashboard</a>
+        </p>
 
-    <br>
-
-    <a href="/dashboard">Back to Dashboard</a>
+    </div>
 
 </body>
 </html>
