@@ -1,35 +1,161 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>HireSmart AI - Upload Resume</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .file-box {
+            border: 2px dashed #1f3c88;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #1f3c88;
+            color: white;
+            border: none;
+            padding: 13px 25px;
+            border-radius: 7px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1f3c88;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
 
-    <h1>Upload Resume</h1>
+    <!-- NAVBAR -->
+    <div class="navbar">
+        <h2>HireSmart AI</h2>
 
-    <p>Upload your resume in PDF, DOC, or DOCX format.</p>
+        <a href="/logout">
+            Logout
+        </a>
+    </div>
 
-    <form action="/upload_resume" method="POST" enctype="multipart/form-data">
+    <!-- MAIN -->
+    <div class="container">
 
-        <input
-            type="file"
-            name="resume"
-            accept=".pdf,.doc,.docx"
-            required
-        >
+        <div class="card">
 
-        <br><br>
+            <div class="icon">
+                📄
+            </div>
 
-        <button type="submit">
-            Upload Resume
-        </button>
+            <h1>
+                Upload Your Resume
+            </h1>
 
-    </form>
+            <p class="description">
+                Upload your resume in PDF or DOCX format
+                for AI analysis.
+            </p>
 
-    <br>
+            <!-- UPLOAD FORM -->
+            <form
+                action="/upload_resume"
+                method="POST"
+                enctype="multipart/form-data">
 
-    <a href="/dashboard">Back to Dashboard</a>
+                <div class="file-box">
+
+                    <input
+                        type="file"
+                        name="resume"
+                        accept=".pdf,.doc,.docx"
+                        required>
+
+                </div>
+
+                <button type="submit">
+                    Upload Resume
+                </button>
+
+            </form>
+
+            <a href="/dashboard" class="back">
+                ← Back to Dashboard
+            </a>
+
+        </div>
+
+    </div>
 
 </body>
 </html>
