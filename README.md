@@ -1,8 +1,4 @@
-Absolutely. Here is the **final Kedar-style README for HireSmart AI**, ready to copy into your `README.md`.
 
-It excludes the `docs/` folder and only describes your HireSmart AI project features.
-
-````markdown
 # 🤖 HireSmart AI – AI-Powered Recruitment & Candidate Management Platform
 
 HireSmart AI is an AI-powered web-based recruitment platform designed to simplify and improve the hiring process for both candidates and recruiters.
