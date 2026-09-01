@@ -826,4 +826,3 @@ HireSmart AI is developed as an academic software project to demonstrate the pra
 
 This project is developed for educational and academic purposes.
 
-[HireSmart-AI GitHub Repository](https://github.com/salunkeprajakta/HireSmart-AI?utm_source=chatgpt.com)
