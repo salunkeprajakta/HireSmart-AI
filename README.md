@@ -7,10 +7,6 @@ The platform provides separate dashboards for candidates and recruiters and comb
 
 ---
 
-## ✨ Key Features
-
-### 👩‍🎓 Candidate Features
-
 #### 🔐 Authentication
 - Candidate registration
 - Candidate login
@@ -181,13 +177,25 @@ Answer Evaluation
 Interview Score
        ↓
 Interview Result
-📄 Resume Processing
+````
+
+---
+
+# 📄 Resume Processing
+
 HireSmart AI supports resume processing for PDF and DOCX files.
-PDF Resume Processing
+
+### PDF Resume Processing
+
 PDF text is extracted using the PyPDF library.
-DOCX Resume Processing
+
+### DOCX Resume Processing
+
 DOCX text is extracted using the python-docx library.
-Resume Processing Flow
+
+### Resume Processing Flow
+
+```text
 Upload Resume
       ↓
 Validate File
@@ -203,9 +211,17 @@ Detect Skills
 Identify Missing Skills
       ↓
 Generate Resume Suggestions
-💼 Job Matching
+```
+
+---
+
+# 💼 Job Matching
+
 HireSmart AI uses candidate skills to calculate compatibility with job requirements.
+
 Example:
+
+```text
 Candidate Skills:
 Python
 Flask
@@ -220,9 +236,17 @@ Git
 
 Match:
 100%
+```
+
 The matching process helps candidates discover jobs that better correspond to their skills.
-🔄 Application Workflow
-👩‍🎓 Candidate Flow
+
+---
+
+# 🔄 Application Workflow
+
+## 👩‍🎓 Candidate Flow
+
+```text
 Register
    ↓
 Login
@@ -246,7 +270,11 @@ Track Application
 AI Interview
    ↓
 Interview Result
-👨‍💼 Recruiter Flow
+```
+
+## 👨‍💼 Recruiter Flow
+
+```text
 Register
    ↓
 Login
@@ -264,8 +292,15 @@ Review Applications
 Shortlist / Reject
    ↓
 Candidate Notification
-🏗️ System Architecture
+```
+
+---
+
+# 🏗️ System Architecture
+
 HireSmart AI follows a web-based client-server architecture.
+
+```text
                     ┌──────────────────────────┐
                     │          USERS           │
                     │                          │
@@ -307,32 +342,31 @@ HireSmart AI follows a web-based client-server architecture.
                                       │ Resume Context      │
                                       │ Interview Support   │
                                       └─────────────────────┘
-🛠️ Technology Stack
-Technology
-Purpose
-Python
-Backend programming
-Flask
-Web application framework
-HTML
-Frontend structure
-CSS
-User interface styling
-JavaScript
-Frontend interactivity
-SQLite
-Database management
-SQL
-Database queries
-Google Gemini AI
-AI-powered interview functionality
-PyPDF
-PDF resume text extraction
-python-docx
-DOCX resume text extraction
-Werkzeug
-Password hashing and secure file handling
-📂 Project Structure
+```
+
+---
+
+# 🛠️ Technology Stack
+
+| Technology       | Purpose                                   |
+| ---------------- | ----------------------------------------- |
+| Python           | Backend programming                       |
+| Flask            | Web application framework                 |
+| HTML             | Frontend structure                        |
+| CSS              | User interface styling                    |
+| JavaScript       | Frontend interactivity                    |
+| SQLite           | Database management                       |
+| SQL              | Database queries                          |
+| Google Gemini AI | AI-powered interview functionality        |
+| PyPDF            | PDF resume text extraction                |
+| python-docx      | DOCX resume text extraction               |
+| Werkzeug         | Password hashing and secure file handling |
+
+---
+
+# 📂 Project Structure
+
+```text
 HireSmart-AI/
 │
 ├── app.py
@@ -374,10 +408,19 @@ HireSmart-AI/
 │
 └── uploads/
     └── .gitkeep
-🗄️ Database
+```
+
+---
+
+# 🗄️ Database
+
 HireSmart AI uses SQLite for storing application data.
-Users
+
+### Users
+
 Stores candidate and recruiter information.
+
+```text
 users
 ├── id
 ├── name
@@ -388,8 +431,13 @@ users
 ├── education
 ├── skills
 └── experience
-Jobs
+```
+
+### Jobs
+
 Stores recruiter-created job opportunities.
+
+```text
 jobs
 ├── id
 ├── recruiter_id
@@ -399,16 +447,26 @@ jobs
 ├── skills
 ├── description
 └── created_at
-Applications
+```
+
+### Applications
+
 Stores candidate job applications.
+
+```text
 applications
 ├── id
 ├── job_id
 ├── candidate_id
 ├── status
 └── applied_at
-Notifications
+```
+
+### Notifications
+
 Stores candidate application notifications.
+
+```text
 notifications
 ├── id
 ├── candidate_id
@@ -416,268 +474,356 @@ notifications
 ├── message
 ├── is_read
 └── created_at
-🔌 Application Routes
-General Routes
-Method
-Endpoint
-Purpose
-GET
-/
-Application entry point
-GET/POST
-/register
-User registration
-GET/POST
-/login
-User login
-GET
-/logout
-Logout
-Candidate Routes
-Method
-Endpoint
-Purpose
-GET
-/dashboard
-Candidate dashboard
-GET/POST
-/profile
-Candidate profile
-GET/POST
-/upload_resume
-Resume upload
-GET
-/resume_analysis
-Resume analysis
-GET
-/skill_analysis
-Skill analysis
-GET
-/jobs
-Job listing/recommendations
-POST
-/apply/<job_id>
-Apply for job
-GET
-/my_applications
-Application tracking
-GET
-/notifications
-Candidate notifications
-Recruiter Routes
-Method
-Endpoint
-Purpose
-GET
-/recruiter/dashboard
-Recruiter dashboard
-GET/POST
-/recruiter/post_job
-Create job
-GET
-/recruiter/jobs
-Recruiter jobs
-GET
-/recruiter/candidates
-Candidate management
-POST
-/recruiter/application/<application_id>/<status>
-Update application status
-AI Interview Routes
-Method
-Endpoint
-Purpose
-GET/POST
-/interview
-Start interview
-GET/POST
-/interview/question
-Interview questions and answers
-GET
-/interview/result
-Interview result
-GET
-/test_gemini
-Test Gemini integration
-⚙️ Installation & Setup
-Prerequisites
+```
+
+---
+
+# 🔌 Application Routes
+
+## General Routes
+
+| Method   | Endpoint    | Purpose                 |
+| -------- | ----------- | ----------------------- |
+| GET      | `/`         | Application entry point |
+| GET/POST | `/register` | User registration       |
+| GET/POST | `/login`    | User login              |
+| GET      | `/logout`   | Logout                  |
+
+## Candidate Routes
+
+| Method   | Endpoint           | Purpose                     |
+| -------- | ------------------ | --------------------------- |
+| GET      | `/dashboard`       | Candidate dashboard         |
+| GET/POST | `/profile`         | Candidate profile           |
+| GET/POST | `/upload_resume`   | Resume upload               |
+| GET      | `/resume_analysis` | Resume analysis             |
+| GET      | `/skill_analysis`  | Skill analysis              |
+| GET      | `/jobs`            | Job listing/recommendations |
+| POST     | `/apply/<job_id>`  | Apply for job               |
+| GET      | `/my_applications` | Application tracking        |
+| GET      | `/notifications`   | Candidate notifications     |
+
+## Recruiter Routes
+
+| Method   | Endpoint                                           | Purpose                   |
+| -------- | -------------------------------------------------- | ------------------------- |
+| GET      | `/recruiter/dashboard`                             | Recruiter dashboard       |
+| GET/POST | `/recruiter/post_job`                              | Create job                |
+| GET      | `/recruiter/jobs`                                  | Recruiter jobs            |
+| GET      | `/recruiter/candidates`                            | Candidate management      |
+| POST     | `/recruiter/application/<application_id>/<status>` | Update application status |
+
+## AI Interview Routes
+
+| Method   | Endpoint              | Purpose                         |
+| -------- | --------------------- | ------------------------------- |
+| GET/POST | `/interview`          | Start interview                 |
+| GET/POST | `/interview/question` | Interview questions and answers |
+| GET      | `/interview/result`   | Interview result                |
+| GET      | `/test_gemini`        | Test Gemini integration         |
+
+---
+
+# ⚙️ Installation & Setup
+
+## Prerequisites
+
 Make sure the following are installed:
-Python 3.x
-pip
-Git
-Google Gemini API key
-1. Clone the Repository
+
+* Python 3.x
+* pip
+* Git
+* Google Gemini API key
+
+---
+
+## 1. Clone the Repository
+
+```bash
 git clone https://github.com/salunkeprajakta/HireSmart-AI.git
 cd HireSmart-AI
-2. Create Virtual Environment
+```
+
+---
+
+## 2. Create Virtual Environment
+
+```bash
 python -m venv venv
-3. Activate Virtual Environment
-Windows
+```
+
+---
+
+## 3. Activate Virtual Environment
+
+### Windows
+
+```powershell
 venv\Scripts\activate
-Linux / macOS
+```
+
+### Linux / macOS
+
+```bash
 source venv/bin/activate
-4. Install Dependencies
+```
+
+---
+
+## 4. Install Dependencies
+
+```bash
 pip install -r requirements.txt
-🔑 Gemini API Configuration
+```
+
+---
+
+# 🔑 Gemini API Configuration
+
 The Gemini API key should not be stored directly inside the source code.
+
 The application reads the API key from an environment variable.
-Windows PowerShell
+
+### Windows PowerShell
+
+```powershell
 $env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-Linux / macOS
+```
+
+### Linux / macOS
+
+```bash
 export GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+```
+
 Never upload the following to GitHub:
+
+```text
 .env
 API keys
 Passwords
 Secret credentials
-▶️ Run the Application
+```
+
+---
+
+# ▶️ Run the Application
+
 Start the Flask application:
+
+```bash
 python app.py
+```
+
 The application will normally be available at:
+
+```text
 http://127.0.0.1:5000
+```
+
 Open the address in your web browser.
-🧪 Testing
-Candidate Testing
+
+---
+
+# 🧪 Testing
+
+## Candidate Testing
+
 Major candidate workflows include:
-Registration
-Login
-Forgot password
-Profile management
-Resume upload
-PDF extraction
-DOCX extraction
-Resume analysis
-Skill analysis
-Job matching
-Job recommendations
-Job application
-Application tracking
-Notifications
-AI interview
-Interview questions
-Interview evaluation
-Interview result
-Recruiter Testing
+
+* Registration
+* Login
+* Forgot password
+* Profile management
+* Resume upload
+* PDF extraction
+* DOCX extraction
+* Resume analysis
+* Skill analysis
+* Job matching
+* Job recommendations
+* Job application
+* Application tracking
+* Notifications
+* AI interview
+* Interview questions
+* Interview evaluation
+* Interview result
+
+## Recruiter Testing
+
 Major recruiter workflows include:
-Registration
-Login
-Recruiter dashboard
-Job posting
-Job management
-Candidate viewing
-Application review
-Candidate shortlisting
-Candidate rejection
-Gemini Testing
+
+* Registration
+* Login
+* Recruiter dashboard
+* Job posting
+* Job management
+* Candidate viewing
+* Application review
+* Candidate shortlisting
+* Candidate rejection
+
+## Gemini Testing
+
 The application provides:
+
+```text
 /test_gemini
+```
+
 This route can be used to verify the Gemini AI connection.
-🔐 Security
+
+---
+
+# 🔐 Security
+
 HireSmart AI follows basic security practices including:
-Password hashing using Werkzeug
-Secure uploaded filenames
-Session-based authentication
-Candidate/recruiter role checks
-Environment variables for API keys
-.gitignore protection for sensitive files
-Restricted handling of uploaded resumes
+
+* Password hashing using Werkzeug
+* Secure uploaded filenames
+* Session-based authentication
+* Candidate/recruiter role checks
+* Environment variables for API keys
+* `.gitignore` protection for sensitive files
+* Restricted handling of uploaded resumes
+
 Sensitive information should never be committed to the public GitHub repository.
-🎯 Project Objectives
+
+---
+
+# 🎯 Project Objectives
+
 The main objectives of HireSmart AI are:
-Simplify the recruitment process.
-Provide separate dashboards for candidates and recruiters.
-Automate basic resume analysis.
-Identify skills from candidate resumes.
-Identify missing skills.
-Recommend jobs based on candidate skills.
-Allow candidates to apply for suitable jobs.
-Help recruiters manage jobs and candidates.
-Provide application status tracking and notifications.
-Generate resume-based AI interview questions.
-Evaluate interview performance.
-Improve candidate screening and interview preparation.
-✅ Current Implementation
+
+1. Simplify the recruitment process.
+2. Provide separate dashboards for candidates and recruiters.
+3. Automate basic resume analysis.
+4. Identify skills from candidate resumes.
+5. Identify missing skills.
+6. Recommend jobs based on candidate skills.
+7. Allow candidates to apply for suitable jobs.
+8. Help recruiters manage jobs and candidates.
+9. Provide application status tracking and notifications.
+10. Generate resume-based AI interview questions.
+11. Evaluate interview performance.
+12. Improve candidate screening and interview preparation.
+
+---
+
+# ✅ Current Implementation
+
 The current project includes:
-Candidate authentication
-Recruiter authentication
-Forgot password functionality
-Candidate dashboard
-Recruiter dashboard
-Profile management
-Resume upload
-PDF resume processing
-DOCX resume processing
-Resume text extraction
-Resume analysis
-Skill detection
-Skill analysis
-Missing skill identification
-Job listing
-Skill-based job matching
-Job recommendations
-Job applications
-Application tracking
-Notifications
-Job posting
-Candidate management
-Application status management
-Candidate shortlisting
-Candidate rejection
-Google Gemini AI integration
-AI interview question generation
-Resume-based interview
-Interview answer evaluation
-Interview score
-Interview result
-🚀 Future Enhancements
+
+* Candidate authentication
+* Recruiter authentication
+* Forgot password functionality
+* Candidate dashboard
+* Recruiter dashboard
+* Profile management
+* Resume upload
+* PDF resume processing
+* DOCX resume processing
+* Resume text extraction
+* Resume analysis
+* Skill detection
+* Skill analysis
+* Missing skill identification
+* Job listing
+* Skill-based job matching
+* Job recommendations
+* Job applications
+* Application tracking
+* Notifications
+* Job posting
+* Candidate management
+* Application status management
+* Candidate shortlisting
+* Candidate rejection
+* Google Gemini AI integration
+* AI interview question generation
+* Resume-based interview
+* Interview answer evaluation
+* Interview score
+* Interview result
+
+---
+
+# 🚀 Future Enhancements
+
 Possible future improvements include:
-Advanced AI candidate ranking
-Advanced candidate-job matching
-Personalized job recommendation system
-Advanced recruiter analytics
-Email notifications
-Interview scheduling
-Improved AI interview evaluation
-Admin dashboard
-Advanced candidate filtering
-Cloud deployment
-More advanced resume scoring
-AI-generated interview feedback
-Improved candidate ranking algorithms
-🌟 Why HireSmart AI?
+
+* Advanced AI candidate ranking
+* Advanced candidate-job matching
+* Personalized job recommendation system
+* Advanced recruiter analytics
+* Email notifications
+* Interview scheduling
+* Improved AI interview evaluation
+* Admin dashboard
+* Advanced candidate filtering
+* Cloud deployment
+* More advanced resume scoring
+* AI-generated interview feedback
+* Improved candidate ranking algorithms
+
+---
+
+# 🌟 Why HireSmart AI?
+
 HireSmart AI combines recruitment management with resume intelligence and generative AI.
-Candidates can:
-Analyze their resumes
-Understand their skills
-Identify missing skills
-Discover suitable jobs
-Apply for jobs
-Prepare through AI-powered interviews
-View interview performance
-Recruiters can:
-Post jobs
-Manage job opportunities
-View candidates
-Review applications
-Shortlist candidates
-Reject candidates
-Manage the recruitment process
+
+### Candidates can:
+
+* Analyze their resumes
+* Understand their skills
+* Identify missing skills
+* Discover suitable jobs
+* Apply for jobs
+* Prepare through AI-powered interviews
+* View interview performance
+
+### Recruiters can:
+
+* Post jobs
+* Manage job opportunities
+* View candidates
+* Review applications
+* Shortlist candidates
+* Reject candidates
+* Manage the recruitment process
+
 HireSmart AI provides a centralized platform for important candidate and recruiter activities.
-📚 Academic Purpose
+
+---
+
+# 📚 Academic Purpose
+
 HireSmart AI is developed as an academic software project to demonstrate the practical application of:
-Python programming
-Flask web development
-Database management
-SQL
-Resume processing
-Skill detection
-Job matching
-Web application development
-Generative AI
-Recruitment management
-👩‍💻 Author
-Prajakta Salunke
-Project: HireSmart AI – AI-Powered Recruitment & Candidate Management Platform
-📄 License
+
+* Python programming
+* Flask web development
+* Database management
+* SQL
+* Resume processing
+* Skill detection
+* Job matching
+* Web application development
+* Generative AI
+* Recruitment management
+
+---
+
+# 👩‍💻 Author
+
+**Prajakta Salunke**
+
+**Project:** HireSmart AI – AI-Powered Recruitment & Candidate Management Platform
+
+---
+
+# 📄 License
+
 This project is developed for educational and academic purposes.
 
+[HireSmart-AI GitHub Repository](https://github.com/salunkeprajakta/HireSmart-AI?utm_source=chatgpt.com)
