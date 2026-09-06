@@ -2,184 +2,393 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <title>AI Interview - HireSmart AI</title>
 
-    <title>HireSmart AI - Mock Interview</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
 
     <style>
 
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f5f6fa;
-        }
-
-        .navbar {
-            background: #1f3c88;
-            color: white;
-            padding: 18px 30px;
-
+        .interview-navbar {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         }
 
-        .navbar h2 {
+        .interview-navbar h2 {
             margin: 0;
         }
 
-        .navbar a {
-            color: white;
+        .interview-navbar a {
             text-decoration: none;
         }
 
-        .container {
+        .question-container {
+            min-height: 85vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
+
+        .question-card {
+            width: 100%;
             max-width: 750px;
-            margin: 60px auto;
-            padding: 20px;
-        }
-
-        .card {
             background: white;
-            padding: 40px;
-            border-radius: 15px;
-
-            box-shadow:
-                0 4px 15px rgba(0,0,0,0.1);
+            padding: 35px;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
         }
 
-        .progress {
-            color: #1f3c88;
+        .question-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 15px;
+        }
+
+        .question-number {
+            font-size: 18px;
             font-weight: bold;
         }
 
-        h1 {
-            color: #1f3c88;
-        }
-
-        .question {
-            font-size: 22px;
+        .timer {
+            background: #f1f3f6;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 20px;
             font-weight: bold;
-            color: #333;
-
-            margin: 30px 0;
         }
 
-        textarea {
+        .timer.warning {
+            background: #ffe5e5;
+            color: #b00020;
+        }
+
+        .question-text {
+            background: #f7f8fc;
+            padding: 22px;
+            border-radius: 12px;
+            font-size: 20px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .answer-label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .answer-box {
             width: 100%;
             min-height: 180px;
-
             padding: 15px;
-
             border: 1px solid #ccc;
-
-            border-radius: 8px;
-
+            border-radius: 10px;
             font-size: 16px;
-
-            box-sizing: border-box;
-
             resize: vertical;
+            box-sizing: border-box;
         }
 
-        button {
-            background: #1f3c88;
-            color: white;
+        .answer-box:focus {
+            outline: none;
+            border-color: #666;
+        }
 
-            border: none;
-
-            padding: 13px 25px;
-
-            border-radius: 7px;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
+        .submit-button {
+            width: 100%;
             margin-top: 20px;
+            padding: 14px;
+            border: none;
+            border-radius: 9px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
-        .error {
-            color: red;
-            margin-top: 15px;
+        .submit-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .interview-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error-message {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #ffe5e5;
+            color: #b00020;
+            border-radius: 8px;
+            text-align: center;
         }
 
     </style>
-
 </head>
 
 <body>
 
-    <div class="navbar">
+    <!-- NAVBAR -->
+
+    <div class="interview-navbar">
 
         <h2>HireSmart AI</h2>
 
-        <a href="/logout">
+        <a href="{{ url_for('logout') }}">
             Logout
         </a>
 
     </div>
 
 
-    <div class="container">
+    <!-- QUESTION CONTAINER -->
 
-        <div class="card">
+    <div class="question-container">
 
-            <div class="progress">
+        <div class="question-card">
 
-                Question {{ number }} of {{ total }}
+            <!-- TOP SECTION -->
+
+            <div class="question-top">
+
+                <div class="question-number">
+
+                    Question {{ number }} of {{ total }}
+
+                </div>
+
+                <div id="timer" class="timer">
+
+                    ⏱️
+
+                    <span id="time">
+                        Loading...
+                    </span>
+
+                </div>
 
             </div>
 
 
-            <h1>
-                🎤 Mock Interview
-            </h1>
+            <!-- ERROR -->
+
+            {% if error %}
+
+            <div class="error-message">
+
+                ⚠️ {{ error }}
+
+            </div>
+
+            {% endif %}
 
 
-            <div class="question">
+            <!-- QUESTION -->
+
+            <div class="question-text">
 
                 {{ question }}
 
             </div>
 
 
-            <form method="POST">
+            <!-- ANSWER FORM -->
+
+            <form method="POST" id="answerForm">
+
+                <label
+                    for="answer"
+                    class="answer-label">
+
+                    Your Answer
+
+                </label>
 
                 <textarea
                     name="answer"
+                    id="answer"
+                    class="answer-box"
                     placeholder="Type your answer here..."
-                    required
-                ></textarea>
+                    required></textarea>
 
 
-                {% if error %}
-
-                <div class="error">
-                    {{ error }}
-                </div>
-
-                {% endif %}
+                <input
+                    type="hidden"
+                    name="time_expired"
+                    id="time_expired"
+                    value="0">
 
 
-                <button type="submit">
+                <button
+                    type="submit"
+                    class="submit-button"
+                    id="submitButton">
 
-                    {% if number == total %}
-                        Finish Interview
-                    {% else %}
-                        Next Question →
-                    {% endif %}
+                    Submit Answer →
 
                 </button>
 
             </form>
 
+
+            <!-- INTERVIEW INFORMATION -->
+
+            <div class="interview-info">
+
+                <span>
+                    🎯 {{ interview_type|capitalize }} Interview
+                </span>
+
+                <span>
+                    ⏱️ {{ duration }} Minutes
+                </span>
+
+            </div>
+
         </div>
 
     </div>
+
+
+    <!-- TIMER SCRIPT -->
+
+    <script>
+
+        // Remaining time received from Flask
+
+        let remainingSeconds = Number("{{ remaining_seconds|int }}");
+
+
+        const timer =
+            document.getElementById("timer");
+
+        const timeDisplay =
+            document.getElementById("time");
+
+        const answerForm =
+            document.getElementById("answerForm");
+
+        const timeExpiredInput =
+            document.getElementById("time_expired");
+
+        const submitButton =
+            document.getElementById("submitButton");
+
+
+        // -----------------------------------
+        // FORMAT TIME
+        // -----------------------------------
+
+        function formatTime(seconds) {
+
+            const minutes =
+                Math.floor(seconds / 60);
+
+            const secs =
+                seconds % 60;
+
+            return (
+                String(minutes).padStart(2, "0")
+                + ":"
+                + String(secs).padStart(2, "0")
+            );
+
+        }
+
+
+        // -----------------------------------
+        // TIMER UPDATE
+        // -----------------------------------
+
+        function updateTimer() {
+
+            if (remainingSeconds <= 0) {
+
+                timeDisplay.textContent =
+                    "00:00";
+
+                timer.classList.add("warning");
+
+                timeExpiredInput.value =
+                    "1";
+
+                clearInterval(timerInterval);
+
+                /*
+                 * Automatically submit the
+                 * current answer.
+                 */
+
+                answerForm.submit();
+
+                return;
+            }
+
+
+            timeDisplay.textContent =
+                formatTime(remainingSeconds);
+
+
+            // Warning during final 2 minutes
+
+            if (remainingSeconds <= 120) {
+
+                timer.classList.add("warning");
+
+            }
+
+
+            remainingSeconds--;
+
+        }
+
+
+        // -----------------------------------
+        // START TIMER
+        // -----------------------------------
+
+        updateTimer();
+
+        const timerInterval =
+            setInterval(
+                updateTimer,
+                1000
+            );
+
+
+        // -----------------------------------
+        // PREVENT DOUBLE SUBMISSION
+        // -----------------------------------
+
+        answerForm.addEventListener(
+            "submit",
+            function () {
+
+                clearInterval(timerInterval);
+
+                submitButton.disabled =
+                    true;
+
+                submitButton.textContent =
+                    "Submitting...";
+
+            }
+        );
+
+    </script>
 
 </body>
 

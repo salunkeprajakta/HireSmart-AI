@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import sqlite3
 import os
+import time
 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -50,10 +51,7 @@ GEMINI_MODEL = "gemini-3.6-flash"
 gemini_client = None
 
 
-if (
-    GEMINI_API_KEY
-    and GEMINI_API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE"
-):
+if GEMINI_API_KEY:
 
     try:
 
@@ -80,6 +78,7 @@ else:
 
     print("================================")
     print("WARNING: GEMINI API KEY NOT CONFIGURED")
+    print("Fallback interview system will be used.")
     print("================================")
 
 
@@ -93,7 +92,7 @@ def ask_gemini(prompt):
 
         print("================================")
         print("Gemini client is not initialized.")
-        print("Check your GEMINI_API_KEY.")
+        print("Using fallback interview system.")
         print("================================")
 
         return ""
@@ -119,23 +118,19 @@ def ask_gemini(prompt):
         if not result:
 
             print("Gemini returned no text.")
-
-            print(
-                "Full Gemini response:",
-                response
-            )
+            print("Full Gemini response:", response)
 
             return ""
 
         print("================================")
         print("GEMINI SUCCESS")
-        print("RESPONSE:")
-        print(result)
         print("================================")
 
         return result.strip()
 
     except Exception as error:
+
+        error_text = str(error).lower()
 
         print("================================")
         print("GEMINI ERROR")
@@ -143,6 +138,17 @@ def ask_gemini(prompt):
         print("ERROR:", str(error))
         print("DETAIL:", repr(error))
         print("================================")
+
+        if (
+            "429" in error_text
+            or "ratelimit" in error_text
+            or "rate limit" in error_text
+            or "quota" in error_text
+            or "too_many_requests" in error_text
+        ):
+
+            print("GEMINI QUOTA EXCEEDED.")
+            print("Fallback interview questions will be used.")
 
         return ""
 
@@ -486,7 +492,11 @@ def forgot_password():
             ""
         ).strip()
 
-        if not email or not new_password or not confirm_password:
+        if (
+            not email
+            or not new_password
+            or not confirm_password
+        ):
 
             return """
             <h2>Please fill all fields.</h2>
@@ -2214,69 +2224,525 @@ def check_interview_answer(
 
 
 # =========================================================
-# GENERATE INTERVIEW QUESTIONS
+# FALLBACK INTERVIEW QUESTIONS
+# =========================================================
+
+def generate_fallback_questions(
+    resume_text,
+    question_count=10,
+    interview_type="resume",
+    previous_questions=None,
+    previous_answers=None
+):
+
+    resume_lower = resume_text.lower()
+
+    previous_questions = previous_questions or []
+    previous_answers = previous_answers or []
+
+    questions = []
+
+    # -----------------------------------------------------
+    # DETECT SKILLS FROM RESUME
+    # -----------------------------------------------------
+
+    detected_skills = []
+
+    for skill in SKILLS_LIST:
+
+        if skill.lower() in resume_lower:
+
+            detected_skills.append(skill)
+
+    # -----------------------------------------------------
+    # FOLLOW-UP QUESTIONS
+    # -----------------------------------------------------
+
+    if previous_answers:
+
+        last_answer = previous_answers[-1].strip()
+
+        if last_answer:
+
+            last_question = ""
+
+            if previous_questions:
+
+                last_question = (
+                    previous_questions[-1].lower()
+                )
+
+            if "project" in last_question:
+
+                questions.append(
+                    "Can you explain the main challenge you faced in that project and how you solved it?"
+                )
+
+            elif (
+                "python" in last_question
+                or "java" in last_question
+                or "c++" in last_question
+            ):
+
+                questions.append(
+                    "Can you describe a practical example where you used this technology and explain your contribution?"
+                )
+
+            elif "skill" in last_question:
+
+                questions.append(
+                    "Which of your technical skills are you most confident in, and how have you demonstrated that skill in a project?"
+                )
+
+            elif "experience" in last_question:
+
+                questions.append(
+                    "What was your main responsibility in that experience, and what did you learn from it?"
+                )
+
+            else:
+
+                questions.append(
+                    "Could you explain your previous answer in more detail and give a practical example from your experience?"
+                )
+
+    # -----------------------------------------------------
+    # TECHNICAL QUESTIONS
+    # -----------------------------------------------------
+
+    if interview_type == "technical":
+
+        for skill in detected_skills:
+
+            skill_lower = skill.lower()
+
+            if skill_lower == "python":
+
+                questions.append(
+                    "What is Python, and why did you choose Python for your projects?"
+                )
+
+                questions.append(
+                    "Can you explain an important Python concept that you used in your project?"
+                )
+
+            elif skill_lower == "java":
+
+                questions.append(
+                    "What are the main features of Java, and how have you used Java in your projects?"
+                )
+
+            elif skill_lower == "c++":
+
+                questions.append(
+                    "What are the important concepts of C++ that you have used in your projects?"
+                )
+
+            elif skill_lower == "sql":
+
+                questions.append(
+                    "How did you use SQL or databases in your project?"
+                )
+
+                questions.append(
+                    "What is the difference between a primary key and a foreign key in SQL?"
+                )
+
+            elif skill_lower == "html":
+
+                questions.append(
+                    "How did you use HTML to structure your web application?"
+                )
+
+            elif skill_lower == "css":
+
+                questions.append(
+                    "How did you use CSS to make your application responsive and user-friendly?"
+                )
+
+            elif skill_lower == "javascript":
+
+                questions.append(
+                    "How did you use JavaScript to add functionality to your web application?"
+                )
+
+            elif skill_lower == "flask":
+
+                questions.append(
+                    "Why did you choose Flask for your project, and how did you use it?"
+                )
+
+                questions.append(
+                    "Can you explain how routing works in your Flask application?"
+                )
+
+            elif skill_lower == "machine learning":
+
+                questions.append(
+                    "What machine learning techniques have you used, and how were they applied in your project?"
+                )
+
+            elif skill_lower == "react":
+
+                questions.append(
+                    "How have you used React in your projects?"
+                )
+
+            elif skill_lower == "mongodb":
+
+                questions.append(
+                    "How did you use MongoDB and why was it suitable for your project?"
+                )
+
+            elif skill_lower == "git":
+
+                questions.append(
+                    "How did you use Git for version control during your project?"
+                )
+
+            elif skill_lower == "github":
+
+                questions.append(
+                    "How did you use GitHub for collaboration and project management?"
+                )
+
+    # -----------------------------------------------------
+    # HR QUESTIONS
+    # -----------------------------------------------------
+
+    elif interview_type == "hr":
+
+        questions.extend([
+
+            "Tell me about yourself and your educational background.",
+
+            "What are your strongest skills according to your resume?",
+
+            "Can you describe one project from your resume that you are most proud of?",
+
+            "What was your specific contribution to that project?",
+
+            "What challenges did you face during your project and how did you overcome them?",
+
+            "What are your strengths and weaknesses?",
+
+            "Why should we hire you for this position?",
+
+            "Where do you see yourself in the next five years?",
+
+            "What are your career goals?",
+
+            "Why are you interested in this role?"
+
+        ])
+
+    # -----------------------------------------------------
+    # GENERAL RESUME QUESTIONS
+    # -----------------------------------------------------
+
+    else:
+
+        questions.extend([
+
+            "Tell me about yourself and your educational background.",
+
+            "Can you explain the main project mentioned in your resume?",
+
+            "What was your specific contribution to that project?",
+
+            "What technical skills did you use in your project?",
+
+            "What was the biggest challenge you faced while working on your project?",
+
+            "How did you solve a difficult problem during your project?",
+
+            "What did you learn from your project experience?",
+
+            "Which skill mentioned in your resume are you most confident about?",
+
+            "Can you describe your strengths and areas you want to improve?",
+
+            "Why should we hire you?"
+
+        ])
+
+    # -----------------------------------------------------
+    # SKILL-SPECIFIC QUESTIONS
+    # -----------------------------------------------------
+
+    for skill in detected_skills:
+
+        if skill.lower() == "python":
+
+            questions.append(
+                "Can you explain how you used Python in your project?"
+            )
+
+        elif skill.lower() == "sql":
+
+            questions.append(
+                "Can you explain how SQL was used in your project?"
+            )
+
+        elif skill.lower() == "html":
+
+            questions.append(
+                "How did you use HTML while developing your project?"
+            )
+
+        elif skill.lower() == "css":
+
+            questions.append(
+                "How did you use CSS to improve the user interface?"
+            )
+
+        elif skill.lower() == "flask":
+
+            questions.append(
+                "How did Flask help you build the backend of your project?"
+            )
+
+        elif skill.lower() == "machine learning":
+
+            questions.append(
+                "How did you apply machine learning concepts in your project?"
+            )
+
+    # -----------------------------------------------------
+    # REMOVE DUPLICATES
+    # -----------------------------------------------------
+
+    unique_questions = []
+
+    previous_lower = [
+        q.lower().strip()
+        for q in previous_questions
+    ]
+
+    for question in questions:
+
+        clean_question = question.strip()
+
+        if not clean_question:
+
+            continue
+
+        if clean_question.lower() in [
+            q.lower()
+            for q in unique_questions
+        ]:
+
+            continue
+
+        if clean_question.lower() in previous_lower:
+
+            continue
+
+        unique_questions.append(
+            clean_question
+        )
+
+    # -----------------------------------------------------
+    # GENERIC QUESTIONS
+    # -----------------------------------------------------
+
+    generic_questions = [
+
+        "What is one important lesson you learned while working on your projects?",
+
+        "How do you handle a difficult technical problem?",
+
+        "How do you work effectively in a team?",
+
+        "How do you keep improving your technical skills?",
+
+        "What type of role are you looking for?",
+
+        "What are your career goals?",
+
+        "Why are you interested in this position?",
+
+        "Why should we select you for this position?"
+
+    ]
+
+    for question in generic_questions:
+
+        if len(unique_questions) >= question_count:
+
+            break
+
+        if question.lower() not in [
+            q.lower()
+            for q in unique_questions
+        ]:
+
+            if question.lower() not in previous_lower:
+
+                unique_questions.append(
+                    question
+                )
+
+    return unique_questions[:question_count]
+
+
+# =========================================================
+# GENERATE RESUME INTERVIEW QUESTIONS
 # =========================================================
 
 def generate_resume_interview_questions(
-    resume_text
+    resume_text,
+    question_count=10,
+    interview_type="resume",
+    previous_questions=None,
+    previous_answers=None
 ):
 
     resume_text = resume_text[:15000]
 
+    previous_questions = previous_questions or []
+    previous_answers = previous_answers or []
+
+    conversation_context = ""
+
+    if previous_questions and previous_answers:
+
+        conversation_context = """
+Previous interview questions and candidate answers:
+
+"""
+
+        for i in range(
+            min(
+                len(previous_questions),
+                len(previous_answers)
+            )
+        ):
+
+            conversation_context += (
+                f"Question {i + 1}: "
+                f"{previous_questions[i]}\n"
+            )
+
+            conversation_context += (
+                f"Answer {i + 1}: "
+                f"{previous_answers[i]}\n\n"
+            )
+
+    # -----------------------------------------------------
+    # INTERVIEW TYPE
+    # -----------------------------------------------------
+
+    if interview_type == "technical":
+
+        interview_instruction = """
+Create technical interview questions based only on
+technologies, programming languages, tools, frameworks,
+databases, and projects mentioned in the resume.
+
+Do not ask about technologies that are not present
+in the resume.
+"""
+
+    elif interview_type == "hr":
+
+        interview_instruction = """
+Create HR interview questions using information from
+the candidate's resume.
+
+Focus on education, experience, projects, teamwork,
+communication, strengths, weaknesses, career goals,
+responsibilities, achievements, and motivation.
+"""
+
+    else:
+
+        interview_instruction = """
+Create detailed resume-based interview questions.
+
+Focus on skills, projects, education, experience,
+technologies, responsibilities, contributions,
+challenges, achievements, and learning.
+"""
+
+    # -----------------------------------------------------
+    # GEMINI PROMPT
+    # -----------------------------------------------------
+
     prompt = f"""
 You are an AI interviewer for HireSmart AI.
 
-Read the candidate's resume below and create interview questions
-based ONLY on information present in the resume.
-
-Resume:
+Candidate Resume:
 
 -------------------------
-
 {resume_text}
-
 -------------------------
 
-Create exactly 5 interview questions.
+Interview Type:
+{interview_type}
 
-The questions should include:
+Number of Questions:
+{question_count}
 
-1. One question about the candidate's skills.
+{interview_instruction}
 
-2. One question about a project mentioned in the resume.
+IMPORTANT RULES:
 
-3. One question about education or experience if available.
+1. Questions must be relevant to the candidate's resume.
 
-4. One technical question related to a technology actually mentioned in the resume.
+2. For technical questions, only use technologies
+   actually mentioned in the resume.
 
-5. One question about the candidate's role, contribution, or learning.
+3. Questions should be suitable for a real job interview.
 
-Do not ask about technologies that are not mentioned in the resume.
+4. Do not repeat previous questions.
 
-Return ONLY the questions as a numbered list.
+5. Ask follow-up questions when previous answers
+   are available.
 
-Example:
+6. Follow-up questions should explore the candidate's
+   previous answer in more depth.
 
-1. What is your experience with Python?
+7. Do not invent candidate experience.
 
-2. Explain the project mentioned in your resume.
+8. Return ONLY a numbered list of questions.
 
-3. How did you use SQL in your project?
+{conversation_context}
 
-4. What challenges did you face?
-
-5. What was your contribution to the project?
+Generate exactly {question_count} questions.
 """
+
+    # -----------------------------------------------------
+    # TRY GEMINI
+    # -----------------------------------------------------
 
     result = ask_gemini(prompt)
 
+    # -----------------------------------------------------
+    # FALLBACK IF GEMINI FAILS
+    # -----------------------------------------------------
+
     if not result:
 
-        return []
+        print("================================")
+        print("USING FALLBACK INTERVIEW QUESTIONS")
+        print("================================")
+
+        return generate_fallback_questions(
+            resume_text,
+            question_count=question_count,
+            interview_type=interview_type,
+            previous_questions=previous_questions,
+            previous_answers=previous_answers
+        )
+
+    # -----------------------------------------------------
+    # PARSE GEMINI RESPONSE
+    # -----------------------------------------------------
 
     questions = []
 
-    for line in result.split("\n"):
+    for line in result.splitlines():
 
         line = line.strip()
 
@@ -2318,7 +2784,11 @@ Example:
                         question
                     )
 
-    if len(questions) < 5:
+    # -----------------------------------------------------
+    # SECOND PARSER
+    # -----------------------------------------------------
+
+    if len(questions) < question_count:
 
         questions = []
 
@@ -2336,13 +2806,32 @@ Example:
 
             if "?" in line:
 
-                questions.append(line)
+                questions.append(
+                    line
+                )
 
-    return questions[:5]
+    # -----------------------------------------------------
+    # INVALID GEMINI RESPONSE
+    # -----------------------------------------------------
+
+    if not questions:
+
+        print("Gemini response could not be parsed.")
+        print("Using fallback questions.")
+
+        return generate_fallback_questions(
+            resume_text,
+            question_count=question_count,
+            interview_type=interview_type,
+            previous_questions=previous_questions,
+            previous_answers=previous_answers
+        )
+
+    return questions[:question_count]
 
 
 # =========================================================
-# START INTERVIEW
+# INTERVIEW SETUP
 # =========================================================
 
 @app.route(
@@ -2359,14 +2848,31 @@ def interview():
 
     filename, filepath = get_latest_resume()
 
+    # -----------------------------------------------------
+    # SHOW INTERVIEW SETUP
+    # -----------------------------------------------------
+
     if request.method == "GET":
+
+        if not filepath:
+
+            return render_template(
+                "interview.html",
+                filename=None,
+                resume_uploaded=False,
+                error="Please upload your resume before starting the interview."
+            )
 
         return render_template(
             "interview.html",
             filename=filename,
-            resume_uploaded=bool(filepath),
+            resume_uploaded=True,
             error=None
         )
+
+    # -----------------------------------------------------
+    # CHECK RESUME
+    # -----------------------------------------------------
 
     if not filepath:
 
@@ -2374,18 +2880,84 @@ def interview():
             "interview.html",
             filename=None,
             resume_uploaded=False,
-            error="Please upload your resume first."
+            error="Please upload your resume before starting the interview."
         )
 
-    print("================================")
-    print("STARTING RESUME INTERVIEW")
-    print("Resume:", filename)
-    print("Path:", filepath)
-    print(
-        "Exists:",
-        os.path.exists(filepath)
+    # -----------------------------------------------------
+    # GET INTERVIEW SETTINGS
+    # -----------------------------------------------------
+
+    interview_type = request.form.get(
+        "interview_type",
+        "resume"
     )
-    print("================================")
+
+    try:
+
+        question_count = int(
+            request.form.get(
+                "question_count",
+                10
+            )
+        )
+
+    except (ValueError, TypeError):
+
+        question_count = 10
+
+    try:
+
+        duration = int(
+            request.form.get(
+                "duration",
+                30
+            )
+        )
+
+    except (ValueError, TypeError):
+
+        duration = 30
+
+    # -----------------------------------------------------
+    # VALIDATE SETTINGS
+    # -----------------------------------------------------
+
+    allowed_question_counts = [
+        5,
+        10,
+        15,
+        20
+    ]
+
+    allowed_durations = [
+        10,
+        15,
+        30,
+        45,
+        60
+    ]
+
+    allowed_interview_types = [
+        "resume",
+        "technical",
+        "hr"
+    ]
+
+    if question_count not in allowed_question_counts:
+
+        question_count = 10
+
+    if duration not in allowed_durations:
+
+        duration = 30
+
+    if interview_type not in allowed_interview_types:
+
+        interview_type = "resume"
+
+    # -----------------------------------------------------
+    # EXTRACT RESUME TEXT
+    # -----------------------------------------------------
 
     try:
 
@@ -2396,53 +2968,38 @@ def interview():
     except Exception as error:
 
         print(
-            "Resume extraction error:",
-            repr(error)
+            "RESUME EXTRACTION ERROR:",
+            error
         )
 
         return render_template(
             "interview.html",
             filename=filename,
             resume_uploaded=True,
-            error="Could not read your resume."
+            error="Unable to read your resume."
         )
 
-    if not resume_text.strip():
+    if not resume_text or not resume_text.strip():
 
         return render_template(
             "interview.html",
             filename=filename,
             resume_uploaded=True,
-            error=(
-                "Your resume does not contain "
-                "readable text."
-            )
+            error="Unable to extract text from your resume."
         )
 
-    print(
-        "Resume text extracted successfully."
-    )
-
-    print(
-        "Resume text length:",
-        len(resume_text)
-    )
-
-    if not gemini_client:
-
-        return render_template(
-            "interview.html",
-            filename=filename,
-            resume_uploaded=True,
-            error=(
-                "Gemini AI is not configured. "
-                "Please add your Gemini API key "
-                "in Render Environment Variables."
-            )
-        )
+    # -----------------------------------------------------
+    # GENERATE FIRST QUESTION
+    #
+    # Gemini is tried automatically.
+    # If Gemini fails or quota is exceeded,
+    # fallback questions are used.
+    # -----------------------------------------------------
 
     questions = generate_resume_interview_questions(
-        resume_text
+        resume_text,
+        question_count=1,
+        interview_type=interview_type
     )
 
     if not questions:
@@ -2451,17 +3008,12 @@ def interview():
             "interview.html",
             filename=filename,
             resume_uploaded=True,
-            error=(
-                "Gemini could not generate interview "
-                "questions. Please check the Render "
-                "logs for the exact Gemini error."
-            )
+            error="Unable to generate interview questions. Please try again."
         )
 
-    print(
-        "Generated questions:",
-        questions
-    )
+    # -----------------------------------------------------
+    # START INTERVIEW SESSION
+    # -----------------------------------------------------
 
     session["interview_questions"] = questions
 
@@ -2473,9 +3025,19 @@ def interview():
 
     session["interview_score"] = 0
 
-    session["interview_total"] = len(
-        questions
-    )
+    session["interview_total"] = question_count
+
+    session["interview_type"] = interview_type
+
+    session["interview_duration"] = duration
+
+    session["interview_start_time"] = time.time()
+
+    session["interview_time_expired"] = False
+
+    # -----------------------------------------------------
+    # GO TO FIRST QUESTION
+    # -----------------------------------------------------
 
     return redirect(
         url_for("interview_question")
@@ -2518,17 +3080,88 @@ def interview_question():
         0
     )
 
-    if not questions:
+    total = session.get(
+        "interview_total",
+        10
+    )
+
+    interview_type = session.get(
+        "interview_type",
+        "resume"
+    )
+
+    duration = session.get(
+        "interview_duration",
+        30
+    )
+
+    start_time = session.get(
+        "interview_start_time"
+    )
+
+    # -----------------------------------------------------
+    # CHECK INTERVIEW DATA
+    # -----------------------------------------------------
+
+    if not questions or start_time is None:
 
         return redirect(
             url_for("interview")
         )
 
-    if index >= len(questions):
+    # -----------------------------------------------------
+    # CALCULATE REMAINING TIME
+    # -----------------------------------------------------
+
+    elapsed_seconds = (
+        time.time() - start_time
+    )
+
+    total_seconds = (
+        duration * 60
+    )
+
+    remaining_seconds = max(
+        0,
+        int(
+            total_seconds -
+            elapsed_seconds
+        )
+    )
+
+    # -----------------------------------------------------
+    # TIME EXPIRED
+    # -----------------------------------------------------
+
+    if remaining_seconds <= 0:
+
+        session[
+            "interview_time_expired"
+        ] = True
 
         return redirect(
             url_for("interview_result")
         )
+
+    # -----------------------------------------------------
+    # QUESTION LIMIT
+    # -----------------------------------------------------
+
+    if index >= total:
+
+        return redirect(
+            url_for("interview_result")
+        )
+
+    # -----------------------------------------------------
+    # CURRENT QUESTION
+    # -----------------------------------------------------
+
+    question = questions[index]
+
+    # -----------------------------------------------------
+    # SUBMIT ANSWER
+    # -----------------------------------------------------
 
     if request.method == "POST":
 
@@ -2537,38 +3170,244 @@ def interview_question():
             ""
         ).strip()
 
+        browser_time_expired = request.form.get(
+            "time_expired",
+            "0"
+        )
+
+        if browser_time_expired == "1":
+
+            session[
+                "interview_time_expired"
+            ] = True
+
+        # -------------------------------------------------
+        # CHECK SERVER TIME
+        # -------------------------------------------------
+
+        elapsed_seconds = (
+            time.time() - start_time
+        )
+
+        remaining_seconds = max(
+            0,
+            int(
+                total_seconds -
+                elapsed_seconds
+            )
+        )
+
+        # -------------------------------------------------
+        # TIME EXPIRED
+        # -------------------------------------------------
+
+        if remaining_seconds <= 0:
+
+            session[
+                "interview_time_expired"
+            ] = True
+
+            if answer:
+
+                score = check_interview_answer(
+                    question,
+                    answer
+                )
+
+                answers.append(
+                    answer
+                )
+
+                scores.append(
+                    score
+                )
+
+                session[
+                    "interview_answers"
+                ] = answers
+
+                session[
+                    "interview_scores"
+                ] = scores
+
+                session[
+                    "interview_score"
+                ] = sum(scores)
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # -------------------------------------------------
+        # EMPTY ANSWER
+        # -------------------------------------------------
+
         if not answer:
 
             return render_template(
                 "interview_question.html",
-                question=questions[index],
+                question=question,
                 number=index + 1,
-                total=len(questions),
-                error="Please enter your answer."
+                total=total,
+                remaining_seconds=remaining_seconds,
+                duration=duration,
+                interview_type=interview_type,
+                error="Please enter an answer before continuing."
             )
 
-        answer_score = check_interview_answer(
-            questions[index],
+        # -------------------------------------------------
+        # CHECK ANSWER
+        # -------------------------------------------------
+
+        score = check_interview_answer(
+            question,
             answer
         )
 
-        answers.append(answer)
-
-        scores.append(answer_score)
-
-        session["interview_answers"] = answers
-
-        session["interview_scores"] = scores
-
-        session["interview_score"] = sum(
-            scores
+        answers.append(
+            answer
         )
 
-        session["interview_index"] = (
-            index + 1
+        scores.append(
+            score
         )
 
-        if index + 1 >= len(questions):
+        session[
+            "interview_answers"
+        ] = answers
+
+        session[
+            "interview_scores"
+        ] = scores
+
+        session[
+            "interview_score"
+        ] = sum(scores)
+
+        # -------------------------------------------------
+        # MOVE TO NEXT QUESTION
+        # -------------------------------------------------
+
+        index += 1
+
+        session[
+            "interview_index"
+        ] = index
+
+        # -------------------------------------------------
+        # QUESTION LIMIT REACHED
+        # -------------------------------------------------
+
+        if index >= total:
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # -------------------------------------------------
+        # GET LATEST RESUME
+        # -------------------------------------------------
+
+        filename, filepath = get_latest_resume()
+
+        if not filepath:
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # -------------------------------------------------
+        # EXTRACT RESUME TEXT
+        # -------------------------------------------------
+
+        try:
+
+            resume_text = extract_resume_text(
+                filepath
+            )
+
+        except Exception as error:
+
+            print(
+                "RESUME EXTRACTION ERROR:",
+                error
+            )
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        if not resume_text or not resume_text.strip():
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # -------------------------------------------------
+        # GENERATE FOLLOW-UP QUESTION
+        #
+        # Gemini is tried first.
+        # If quota is exceeded, fallback logic is used.
+        # -------------------------------------------------
+
+        previous_questions = questions
+
+        previous_answers = answers
+
+        next_questions = (
+            generate_resume_interview_questions(
+                resume_text,
+                question_count=1,
+                interview_type=interview_type,
+                previous_questions=previous_questions,
+                previous_answers=previous_answers
+            )
+        )
+
+        # -------------------------------------------------
+        # ADD NEXT QUESTION
+        # -------------------------------------------------
+
+        if next_questions:
+
+            questions.append(
+                next_questions[0]
+            )
+
+            session[
+                "interview_questions"
+            ] = questions
+
+        else:
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # -------------------------------------------------
+        # CALCULATE REMAINING TIME
+        # -------------------------------------------------
+
+        remaining_seconds = max(
+            0,
+            int(
+                total_seconds -
+                (
+                    time.time() -
+                    start_time
+                )
+            )
+        )
+
+        # -------------------------------------------------
+        # CHECK TIME AGAIN
+        # -------------------------------------------------
+
+        if remaining_seconds <= 0:
+
+            session[
+                "interview_time_expired"
+            ] = True
 
             return redirect(
                 url_for("interview_result")
@@ -2578,11 +3417,19 @@ def interview_question():
             url_for("interview_question")
         )
 
+    # -----------------------------------------------------
+    # DISPLAY CURRENT QUESTION
+    # -----------------------------------------------------
+
     return render_template(
         "interview_question.html",
-        question=questions[index],
+        question=question,
         number=index + 1,
-        total=len(questions)
+        total=total,
+        remaining_seconds=remaining_seconds,
+        duration=duration,
+        interview_type=interview_type,
+        error=None
     )
 
 
@@ -2609,6 +3456,11 @@ def interview_result():
         0
     )
 
+    answers = session.get(
+        "interview_answers",
+        []
+    )
+
     try:
 
         score = int(score)
@@ -2624,10 +3476,16 @@ def interview_result():
 
         total = 0
 
-    if total > 0:
+    # -----------------------------------------------------
+    # USE ANSWERED QUESTIONS FOR RESULT
+    # -----------------------------------------------------
+
+    answered_count = len(answers)
+
+    if answered_count > 0:
 
         percentage = int(
-            (score / total) * 100
+            (score / answered_count) * 100
         )
 
     else:
@@ -2682,6 +3540,10 @@ def test_gemini():
         <p>
         Add GEMINI_API_KEY in Render Environment Variables.
         </p>
+
+        <p>
+        The interview can still use fallback questions.
+        </p>
         """
 
     result = ask_gemini(
@@ -2694,13 +3556,18 @@ def test_gemini():
         <h1>Gemini Test Failed</h1>
 
         <p>
-        Gemini returned an error.
+        Gemini returned an error or quota limit was reached.
         </p>
 
         <p>
-        Check the Render logs for the exact
-        Gemini error message.
+        The interview system will use fallback questions.
         </p>
+
+        <hr>
+
+        <a href="/interview">
+            Start Resume Interview
+        </a>
         """
 
     return f"""
@@ -2755,6 +3622,11 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000)),
+        port=int(
+            os.environ.get(
+                "PORT",
+                5000
+            )
+        ),
         debug=False
     )
