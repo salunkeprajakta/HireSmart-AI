@@ -2833,168 +2833,42 @@ Generate exactly {question_count} questions.
 # =========================================================
 # INTERVIEW SETUP
 # =========================================================
-
-@app.route(
-    "/interview",
-    methods=["GET", "POST"]
-)
+@app.route("/interview", methods=["GET", "POST"])
 def interview():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
+        return redirect(url_for("login"))
 
     filename, filepath = get_latest_resume()
 
-    # -----------------------------------------------------
-    # SHOW INTERVIEW SETUP
-    # -----------------------------------------------------
-
-    if request.method == "GET":
-
-        if not filepath:
-
-            return render_template(
-                "interview.html",
-                filename=None,
-                resume_uploaded=False,
-                error="Please upload your resume before starting the interview."
-            )
-
-        return render_template(
-            "interview.html",
-            filename=filename,
-            resume_uploaded=True,
-            error=None
-        )
-
-    # -----------------------------------------------------
-    # CHECK RESUME
-    # -----------------------------------------------------
-
     if not filepath:
+        return "Please upload your resume first."
 
+    resume_text = extract_resume_text(filepath)
+
+    if not resume_text.strip():
+        return "Could not extract text from your resume."
+
+    # GET = SHOW SELECTION PAGE
+    if request.method == "GET":
         return render_template(
             "interview.html",
-            filename=None,
-            resume_uploaded=False,
-            error="Please upload your resume before starting the interview."
+            question_options=[10, 20, 30],
+            duration_options=[15, 20, 30]
         )
 
-    # -----------------------------------------------------
-    # GET INTERVIEW SETTINGS
-    # -----------------------------------------------------
+    # POST = START INTERVIEW
+    question_count = int(request.form.get("question_count", 10))
+    duration = int(request.form.get("duration", 30))
+    interview_type = request.form.get("interview_type", "hr")
 
-    interview_type = request.form.get(
-        "interview_type",
-        "resume"
-    )
-
-    try:
-
-        question_count = int(
-            request.form.get(
-                "question_count",
-                10
-            )
-        )
-
-    except (ValueError, TypeError):
-
+    if question_count not in [10, 20, 30]:
         question_count = 10
 
-    try:
-
-        duration = int(
-            request.form.get(
-                "duration",
-                30
-            )
-        )
-
-    except (ValueError, TypeError):
-
+    if duration not in [15, 20, 30]:
         duration = 30
 
-    # -----------------------------------------------------
-    # VALIDATE SETTINGS
-    # -----------------------------------------------------
-
-    allowed_question_counts = [
-        5,
-        10,
-        15,
-        20
-    ]
-
-    allowed_durations = [
-        10,
-        15,
-        30,
-        45,
-        60
-    ]
-
-    allowed_interview_types = [
-        "resume",
-        "technical",
-        "hr"
-    ]
-
-    if question_count not in allowed_question_counts:
-
-        question_count = 10
-
-    if duration not in allowed_durations:
-
-        duration = 30
-
-    if interview_type not in allowed_interview_types:
-
-        interview_type = "resume"
-
-    # -----------------------------------------------------
-    # EXTRACT RESUME TEXT
-    # -----------------------------------------------------
-
-    try:
-
-        resume_text = extract_resume_text(
-            filepath
-        )
-
-    except Exception as error:
-
-        print(
-            "RESUME EXTRACTION ERROR:",
-            error
-        )
-
-        return render_template(
-            "interview.html",
-            filename=filename,
-            resume_uploaded=True,
-            error="Unable to read your resume."
-        )
-
-    if not resume_text or not resume_text.strip():
-
-        return render_template(
-            "interview.html",
-            filename=filename,
-            resume_uploaded=True,
-            error="Unable to extract text from your resume."
-        )
-
-    # -----------------------------------------------------
-    # GENERATE FIRST QUESTION
-    #
-    # Gemini is tried automatically.
-    # If Gemini fails or quota is exceeded,
-    # fallback questions are used.
-    # -----------------------------------------------------
+    if interview_type not in ["hr", "technical"]:
+        interview_type = "hr"
 
     questions = generate_resume_interview_questions(
         resume_text,
@@ -3003,48 +2877,21 @@ def interview():
     )
 
     if not questions:
-
-        return render_template(
-            "interview.html",
-            filename=filename,
-            resume_uploaded=True,
-            error="Unable to generate interview questions. Please try again."
-        )
-
-    # -----------------------------------------------------
-    # START INTERVIEW SESSION
-    # -----------------------------------------------------
+        return "Could not generate interview questions."
 
     session["interview_questions"] = questions
-
     session["interview_answers"] = []
-
     session["interview_scores"] = []
-
     session["interview_index"] = 0
 
-    session["interview_score"] = 0
-
     session["interview_total"] = question_count
-
+    session["interview_duration"] = duration
     session["interview_type"] = interview_type
 
-    session["interview_duration"] = duration
-
     session["interview_start_time"] = time.time()
-
     session["interview_time_expired"] = False
 
-    # -----------------------------------------------------
-    # GO TO FIRST QUESTION
-    # -----------------------------------------------------
-
-    return redirect(
-        url_for("interview_question")
-    )
-
-
-# =========================================================
+    return redirect(url_for("interview_question"))# =========================================================
 # INTERVIEW QUESTION
 # =========================================================
 
