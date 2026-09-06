@@ -14,11 +14,11 @@ The platform provides separate dashboards for candidates and recruiters and comb
 
 Candidates can:
 
-- Register an account
-- Login securely
-- Logout
-- Use session-based authentication
-- Access forgot-password functionality
+* Register an account
+* Login securely
+* Logout
+* Use session-based authentication
+* Access forgot-password functionality
 
 ---
 
@@ -26,12 +26,12 @@ Candidates can:
 
 Candidates can manage their profile information, including:
 
-- Name
-- Email
-- Phone
-- Education
-- Skills
-- Experience
+* Name
+* Email
+* Phone
+* Education
+* Skills
+* Experience
 
 ---
 
@@ -41,8 +41,8 @@ Candidates can upload resumes for analysis.
 
 **Supported formats:**
 
-- PDF
-- DOCX
+* PDF
+* DOCX
 
 The uploaded resume is processed and analyzed by the application.
 
@@ -54,11 +54,11 @@ HireSmart AI extracts and analyzes resume content.
 
 Features include:
 
-- Resume text extraction
-- Resume scoring
-- Skill identification
-- Missing skill identification
-- Resume improvement suggestions
+* Resume text extraction
+* Resume scoring
+* Skill identification
+* Missing skill identification
+* Resume improvement suggestions
 
 ---
 
@@ -68,26 +68,26 @@ The system identifies technical and soft skills from candidate resumes.
 
 Examples include:
 
-- Python
-- Java
-- C++
-- HTML
-- CSS
-- JavaScript
-- SQL
-- Flask
-- Django
-- Machine Learning
-- Data Science
-- Excel
-- Communication
-- Leadership
-- Git
-- GitHub
-- React
-- Node.js
-- MongoDB
-- Power BI
+* Python
+* Java
+* C++
+* HTML
+* CSS
+* JavaScript
+* SQL
+* Flask
+* Django
+* Machine Learning
+* Data Science
+* Excel
+* Communication
+* Leadership
+* Git
+* GitHub
+* React
+* Node.js
+* MongoDB
+* Power BI
 
 ---
 
@@ -95,11 +95,11 @@ Examples include:
 
 Candidates can:
 
-- Browse available jobs
-- View job requirements
-- Check skill matching
-- Receive skill-based job recommendations
-- Apply for suitable jobs
+* Browse available jobs
+* View job requirements
+* Check skill matching
+* Receive skill-based job recommendations
+* Apply for suitable jobs
 
 ---
 
@@ -107,10 +107,10 @@ Candidates can:
 
 Candidates can:
 
-- Apply for jobs
-- View submitted applications
-- Track application status
-- Receive notifications about application updates
+* Apply for jobs
+* View submitted applications
+* Track application status
+* Receive notifications about application updates
 
 ---
 
@@ -120,10 +120,10 @@ Candidates receive notifications related to their job applications.
 
 Examples include:
 
-- Application updates
-- Shortlisting
-- Rejection
-- Recruitment status changes
+* Application updates
+* Shortlisting
+* Rejection
+* Recruitment status changes
 
 ---
 
@@ -135,7 +135,7 @@ The interview system uses information from the candidate's resume to generate re
 
 ---
 
-## ⚙️ Configurable Interview
+## ⚙️ Interview Configuration
 
 The interview can be configured according to the candidate's requirements.
 
@@ -143,28 +143,24 @@ The interview can be configured according to the candidate's requirements.
 
 Available options:
 
-- 5 questions
-- 10 questions
-- 15 questions
-- 20 questions
+* 10 questions
+* 20 questions
+* 30 questions
 
 ### Interview Duration
 
 Available options:
 
-- 10 minutes
-- 15 minutes
-- 30 minutes
-- 45 minutes
-- 60 minutes
+* 15 minutes
+* 20 minutes
+* 30 minutes
 
 ### Interview Types
 
-The system supports different interview styles:
+The system supports:
 
-- Resume-Based Interview
-- Technical Interview
-- HR Interview
+* HR Interview
+* Technical Interview
 
 ---
 
@@ -174,14 +170,14 @@ The AI uses information from the candidate's resume as context.
 
 Questions can be generated around:
 
-- Skills
-- Projects
-- Education
-- Experience
-- Technologies
-- Candidate contributions
-- Learning
-- Achievements
+* Skills
+* Projects
+* Education
+* Experience
+* Technologies
+* Candidate contributions
+* Learning
+* Achievements
 
 This helps create personalized interview questions instead of relying only on generic questions.
 
@@ -189,27 +185,27 @@ This helps create personalized interview questions instead of relying only on ge
 
 ## 🔄 Adaptive Follow-Up Questions
 
-The interview system can generate follow-up questions based on the candidate's previous answers.
+The interview system can generate follow-up questions based on the candidate's previous answers and resume information.
 
 ### Interview Flow
 
 ```text
 Candidate Resume
        ↓
+Interview Type
+       ↓
 Initial Question
        ↓
 Candidate Answer
        ↓
-Answer Analysis
+Previous Answer Analysis
        ↓
 Follow-Up Question
        ↓
-Candidate Answer
-       ↓
-Further Questions
+Next Question
        ↓
 Final Evaluation
-````
+```
 
 This makes the interview more interactive and personalized.
 
@@ -217,7 +213,7 @@ This makes the interview more interactive and personalized.
 
 ## ⏱️ Interview Timer
 
-The interview includes a visible countdown timer.
+The interview includes a visible countdown timer based on the selected duration.
 
 The timer:
 
@@ -229,28 +225,30 @@ The timer:
 
 ---
 
-## 🧠 Interview Answer Evaluation
-
-Candidate answers are evaluated using the interview evaluation system.
-
-The system:
-
-1. Collects the candidate's answer.
-2. Checks the answer against relevant interview concepts and keywords.
-3. Assigns a score.
-4. Continues with the next question.
-5. Calculates the final interview performance.
-
----
-
 ## 📊 Interview Result
 
-After completing the interview, the candidate receives:
+After completing the interview or when the time expires, the candidate receives:
 
 * Interview score
 * Performance percentage
 * Performance feedback
 * Final interview result
+
+### Interview Completion Flow
+
+```text
+Interview Started
+       ↓
+Questions & Answers
+       ↓
+Timer Running
+       ↓
+Time Limit Reached
+       ↓
+Automatic Submission
+       ↓
+Interview Result
+```
 
 ---
 
@@ -301,7 +299,7 @@ HireSmart AI integrates **Google Gemini AI** for personalized interview function
                          ↓
                   Interview Complete
                          ↓
-                 Final Score & Result
+                Final Score & Result
 ```
 
 ---
@@ -717,7 +715,7 @@ notifications
 
 | Method   | Endpoint              | Purpose                               |
 | -------- | --------------------- | ------------------------------------- |
-| GET/POST | `/interview`          | Start and configure interview         |
+| GET/POST | `/interview`          | Configure and start interview         |
 | GET/POST | `/interview/question` | Display questions and collect answers |
 | GET      | `/interview/result`   | Display interview result              |
 | GET      | `/test_gemini`        | Test Gemini AI integration            |
@@ -953,8 +951,8 @@ The current project includes:
 * Google Gemini AI integration
 * AI interview question generation
 * Resume-based interview
-* Technical interview mode
 * HR interview mode
+* Technical interview mode
 * Configurable interview question count
 * Configurable interview duration
 * Interview countdown timer
@@ -1061,4 +1059,3 @@ HireSmart AI is developed as an academic software project to demonstrate the pra
 # 📄 License
 
 This project is developed for educational and academic purposes.
-
