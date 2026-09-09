@@ -1044,7 +1044,9 @@ HireSmart AI is developed as an academic software project to demonstrate the pra
 
 ### Live Deployment
 
-[https://hiresmart-ai-1-dmbg.onrender.com](https://hiresmart-ai-1-dmbg.onrender.com)
+# HireSmart AI
+
+🔗https://hire-smart-qc4q58knm-salunkeprajakta.vercel.app/
 
 ---
 
