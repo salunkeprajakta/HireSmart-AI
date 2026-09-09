@@ -25,7 +25,7 @@ app.secret_key = "hiresmart_secret_key"
 # DATABASE CONFIGURATION
 # =========================================================
 
-DATABASE = "hiresmart.db"
+DATABASE = "/tmp/hiresmart.db"
 
 
 # =========================================================
