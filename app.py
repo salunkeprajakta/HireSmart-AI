@@ -32,15 +32,12 @@ DATABASE = "/tmp/hiresmart.db"
 # UPLOAD CONFIGURATION
 # =========================================================
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = "/tmp/uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-UPLOAD_FOLDER = "/tmp/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-
 # =========================================================
 # GEMINI AI CONFIGURATION
 # =========================================================
