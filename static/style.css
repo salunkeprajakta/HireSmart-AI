@@ -33,10 +33,14 @@ select {
     box-sizing: border-box;
 }
 
+/* =========================
+   GENERAL BUTTONS
+   ========================= */
+
 button {
     width: 95%;
     padding: 10px;
-    background: #007BFF;
+    background: #1f3c88;
     color: white;
     border: none;
     border-radius: 5px;
@@ -45,7 +49,7 @@ button {
 }
 
 button:hover {
-    background: #0056b3;
+    background: #16306f;
 }
 
 a {
@@ -131,7 +135,7 @@ a:hover {
     width: 100%;
     margin-top: 20px;
     padding: 12px;
-    background: #007BFF;
+    background: #1f3c88;
     color: white;
     border: none;
     border-radius: 5px;
@@ -140,7 +144,7 @@ a:hover {
 }
 
 .profile-container button:hover {
-    background: #0056b3;
+    background: #16306f;
 }
 
 .profile-container p:last-child {
@@ -155,6 +159,8 @@ a:hover {
 .profile-container a:hover {
     text-decoration: underline;
 }
+
+
 /* =========================
    AI RESUME INTERVIEW
    ========================= */
@@ -243,4 +249,46 @@ a:hover {
     color: red;
     margin-top: 20px;
     font-weight: bold;
+}
+
+
+/* =========================
+   ACTION BUTTONS
+   ========================= */
+
+.action-button,
+.back-button,
+.dashboard-button,
+.upload-button,
+.btn,
+.button {
+    background: #1f3c88 !important;
+    color: white !important;
+    border: none !important;
+}
+
+.action-button:hover,
+.back-button:hover,
+.dashboard-button:hover,
+.upload-button:hover,
+.btn:hover,
+.button:hover {
+    background: #16306f !important;
+    color: white !important;
+}
+
+
+/* =========================
+   RESPONSIVE FIX
+   ========================= */
+
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+* {
+    box-sizing: border-box;
 }
