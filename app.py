@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from datetime import timedelta
 import sqlite3
 import os
+import time
 import json
 
 from werkzeug.utils import secure_filename
@@ -4090,23 +4091,17 @@ def interview():
             "interview_question"
         )
     )
-
-
-# =========================================================
-# INTERVIEW QUESTION
-# =========================================================
-
 @app.route(
     "/interview/question",
     methods=["GET", "POST"]
 )
 def interview_question():
 
-    check = candidate_required()
+    if "user_id" not in session:
 
-    if check:
-
-        return check
+        return redirect(
+            url_for("login")
+        )
 
     questions = session.get(
         "interview_questions",
@@ -4128,55 +4123,134 @@ def interview_question():
         0
     )
 
+    # Interview duration in minutes
+    duration = session.get(
+        "interview_duration",
+        30
+    )
 
-    if not questions:
+    # Interview start time
+    start_time = session.get(
+        "interview_start_time"
+    )
+
+    # If interview data is missing,
+    # return to interview start page.
+    if not questions or start_time is None:
 
         return redirect(
             url_for("interview")
         )
 
+    # Calculate total interview time
+    total_seconds = duration * 60
+
+    # Calculate elapsed time
+    elapsed_seconds = (
+        time.time() - start_time
+    )
+
+    # Calculate remaining time
+    remaining_seconds = max(
+        0,
+        int(
+            total_seconds -
+            elapsed_seconds
+        )
+    )
+
+    # If time has expired
+    if remaining_seconds <= 0:
+
+        session[
+            "interview_time_expired"
+        ] = True
+
+        return redirect(
+            url_for("interview_result")
+        )
+
+    # Check question limit
+    if index >= len(questions):
+
+        return redirect(
+            url_for("interview_result")
+        )
+
+    current_question = questions[index]
+
+    # -------------------------------------------------
+    # SUBMIT ANSWER
+    # -------------------------------------------------
 
     if request.method == "POST":
-
-        if index >= len(
-            questions
-        ):
-
-            return redirect(
-                url_for(
-                    "interview_result"
-                )
-            )
-
 
         answer = request.form.get(
             "answer",
             ""
         ).strip()
 
-
-        current_question = (
-            questions[index]
+        # Check browser timer
+        browser_time_expired = request.form.get(
+            "time_expired",
+            "0"
         )
 
+        if browser_time_expired == "1":
 
+            session[
+                "interview_time_expired"
+            ] = True
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # Check server-side timer again
+        elapsed_seconds = (
+            time.time() - start_time
+        )
+
+        remaining_seconds = max(
+            0,
+            int(
+                total_seconds -
+                elapsed_seconds
+            )
+        )
+
+        # Time expired
+        if remaining_seconds <= 0:
+
+            session[
+                "interview_time_expired"
+            ] = True
+
+            return redirect(
+                url_for("interview_result")
+            )
+
+        # Empty answer
+        if not answer:
+
+            return render_template(
+                "interview_question.html",
+                question=current_question,
+                question_number=index + 1,
+                total_questions=len(questions),
+                remaining_seconds=remaining_seconds,
+                duration=duration,
+                error="Please enter your answer."
+            )
+
+        # Check answer
         score = check_interview_answer(
             current_question,
             answer
         )
 
-
-        answers.append(
-            answer
-        )
-
-        scores.append(
-            score
-        )
-
-
-        index += 1
-
+        answers.append(answer)
+        scores.append(score)
 
         session[
             "interview_answers"
@@ -4187,34 +4261,30 @@ def interview_question():
         ] = scores
 
         session[
+            "interview_score"
+        ] = sum(scores)
+
+        # Move to next question
+        index += 1
+
+        session[
             "interview_index"
         ] = index
 
+        # All questions completed
+        if index >= len(questions):
 
-        if index >= len(
-            questions
-        ):
-
-            total_score = sum(
-                scores
-            )
+            total_score = sum(scores)
 
             total_questions = len(
                 questions
             )
 
             percentage = int(
-                (
-                    total_score
-                    /
-                    (
-                        total_questions
-                        * 5
-                    )
-                )
-                * 100
+                total_score /
+                total_questions *
+                100
             )
-
 
             if percentage >= 80:
 
@@ -4241,20 +4311,18 @@ def interview_question():
             else:
 
                 message = (
-                    "Keep practicing and improve "
-                    "your interview answers."
+                    "Keep practicing and "
+                    "improve your interview answers."
                 )
 
-
+            # Save result
             conn = get_db()
 
-            conn.execute(
-                """
+            conn.execute("""
                 INSERT INTO interview_results
                 (
                     candidate_id,
                     score,
-                    feedback,
                     total,
                     percentage,
                     message,
@@ -4262,40 +4330,20 @@ def interview_question():
                     answers,
                     scores
                 )
-
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    session["user_id"],
-
-                    total_score,
-
-                    message,
-
-                    total_questions,
-
-                    percentage,
-
-                    message,
-
-                    json.dumps(
-                        questions
-                    ),
-
-                    json.dumps(
-                        answers
-                    ),
-
-                    json.dumps(
-                        scores
-                    )
-                )
-            )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session["user_id"],
+                total_score,
+                total_questions,
+                percentage,
+                message,
+                json.dumps(questions),
+                json.dumps(answers),
+                json.dumps(scores)
+            ))
 
             conn.commit()
-
             conn.close()
-
 
             session[
                 "last_interview_score"
@@ -4313,28 +4361,32 @@ def interview_question():
                 "last_interview_message"
             ] = message
 
-
             return redirect(
                 url_for(
                     "interview_result"
                 )
             )
 
+        # Continue to next question
+        return redirect(
+            url_for(
+                "interview_question"
+            )
+        )
+
+    # -------------------------------------------------
+    # DISPLAY CURRENT QUESTION
+    # -------------------------------------------------
 
     return render_template(
         "interview_question.html",
-
-        question=
-        questions[index],
-
-        question_number=
-        index + 1,
-
-        total_questions=
-        len(questions)
+        question=current_question,
+        question_number=index + 1,
+        total_questions=len(questions),
+        remaining_seconds=remaining_seconds,
+        duration=duration,
+        error=None
     )
-
-
 # =========================================================
 # INTERVIEW RESULT
 # =========================================================
