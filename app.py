@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import timedelta
 import sqlite3
 import os
+import json
 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,6 +28,15 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_REFRESH_EACH_REQUEST"] = True
+
+
+@app.template_filter("from_json")
+def from_json_filter(value):
+
+    try:
+        return json.loads(value or "[]")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
 
 
 # =========================================================
@@ -289,6 +299,85 @@ def create_table():
             message TEXT NOT NULL,
 
             is_read INTEGER DEFAULT 0,
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # =====================================================
+    # RESUME ANALYSIS TABLE
+    # =====================================================
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS resume_analysis (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            candidate_id INTEGER UNIQUE NOT NULL,
+
+            filename TEXT,
+
+            score INTEGER DEFAULT 0,
+
+            skills TEXT,
+
+            missing_skills TEXT,
+
+            suggestions TEXT,
+
+            analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # =====================================================
+    # INTERVIEW RESULTS TABLE
+    # =====================================================
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS interview_results (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            candidate_id INTEGER NOT NULL,
+
+            score INTEGER DEFAULT 0,
+
+            total INTEGER DEFAULT 0,
+
+            percentage INTEGER DEFAULT 0,
+
+            message TEXT,
+
+            questions TEXT,
+
+            answers TEXT,
+
+            scores TEXT,
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # =====================================================
+    # RECRUITER REQUESTS TABLE
+    # =====================================================
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS recruiter_requests (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            recruiter_id INTEGER NOT NULL,
+
+            candidate_id INTEGER NOT NULL,
+
+            job_id INTEGER,
+
+            request_type TEXT NOT NULL,
+
+            message TEXT,
+
+            status TEXT DEFAULT 'Pending',
 
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -886,11 +975,29 @@ def recruiter_candidates():
     conn = get_db()
 
     candidates = conn.execute("""
-        SELECT
-            applications.id AS application_id,
-            applications.status,
-            applications.applied_at,
+        WITH ranked_applications AS (
+            SELECT
+                applications.id AS application_id,
+                applications.status,
+                applications.applied_at,
+                applications.candidate_id,
+                jobs.id AS job_id,
+                jobs.title AS job_title,
+                jobs.company,
+                ROW_NUMBER() OVER (
+                    PARTITION BY applications.candidate_id
+                    ORDER BY applications.applied_at DESC
+                ) AS row_number
+            FROM applications
+            JOIN jobs
+            ON applications.job_id = jobs.id
+            WHERE jobs.recruiter_id = ?
+        )
 
+        SELECT
+            ranked_applications.application_id,
+            ranked_applications.status,
+            ranked_applications.applied_at,
             users.id AS candidate_id,
             users.name,
             users.email,
@@ -898,22 +1005,27 @@ def recruiter_candidates():
             users.education,
             users.skills,
             users.experience,
+            ranked_applications.job_id,
+            ranked_applications.job_title,
+            ranked_applications.company
+        FROM users
+        LEFT JOIN ranked_applications
+        ON users.id = ranked_applications.candidate_id
+        AND ranked_applications.row_number = 1
+        WHERE users.role = 'candidate'
+        ORDER BY
+            CASE WHEN ranked_applications.applied_at IS NULL THEN 1 ELSE 0 END,
+            ranked_applications.applied_at DESC,
+            users.name ASC
+    """, (
+        session["user_id"],
+    )).fetchall()
 
-            jobs.id AS job_id,
-            jobs.title AS job_title,
-            jobs.company
-
-        FROM applications
-
-        JOIN users
-        ON applications.candidate_id = users.id
-
-        JOIN jobs
-        ON applications.job_id = jobs.id
-
-        WHERE jobs.recruiter_id = ?
-
-        ORDER BY applications.applied_at DESC
+    jobs = conn.execute("""
+        SELECT *
+        FROM jobs
+        WHERE recruiter_id = ?
+        ORDER BY created_at DESC
     """, (
         session["user_id"],
     )).fetchall()
@@ -922,8 +1034,182 @@ def recruiter_candidates():
 
     return render_template(
         "recruiter_candidates.html",
-        candidates=candidates
+        candidates=candidates,
+        jobs=jobs
     )
+
+
+# =========================================================
+# RECRUITER - CANDIDATE PROFILE
+# =========================================================
+
+@app.route("/recruiter/candidate/<int:candidate_id>")
+def recruiter_candidate_profile(candidate_id):
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("user_role", "").lower() != "recruiter":
+        return redirect(url_for("dashboard"))
+
+    conn = get_db()
+
+    candidate = conn.execute("""
+        SELECT id, name, email, phone, education, skills, experience
+        FROM users
+        WHERE id = ?
+        AND role = 'candidate'
+    """, (candidate_id,)).fetchone()
+
+    if not candidate:
+        conn.close()
+        return redirect(url_for("recruiter_candidates"))
+
+    jobs = conn.execute("""
+        SELECT *
+        FROM jobs
+        WHERE recruiter_id = ?
+        ORDER BY created_at DESC
+    """, (session["user_id"],)).fetchall()
+
+    applications = conn.execute("""
+        SELECT
+            applications.id,
+            applications.status,
+            applications.applied_at,
+            jobs.title,
+            jobs.company,
+            jobs.location,
+            jobs.skills
+        FROM applications
+        JOIN jobs ON applications.job_id = jobs.id
+        WHERE applications.candidate_id = ?
+        AND jobs.recruiter_id = ?
+        ORDER BY applications.applied_at DESC
+    """, (candidate_id, session["user_id"])).fetchall()
+
+    interview = conn.execute("""
+        SELECT *
+        FROM interview_results
+        WHERE candidate_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    """, (candidate_id,)).fetchone()
+
+    analysis = conn.execute("""
+        SELECT *
+        FROM resume_analysis
+        WHERE candidate_id = ?
+    """, (candidate_id,)).fetchone()
+
+    # If the candidate has uploaded a resume but has never opened the
+    # analysis page, calculate and save the analysis now so HR can still
+    # see the resume score and skills from the candidate profile.
+    if not analysis:
+
+        filename, filepath = get_latest_resume_for_user(candidate_id)
+
+        if filepath:
+            try:
+                resume_text = extract_resume_text(filepath)
+                text_lower = resume_text.lower()
+
+                found_skills = [
+                    skill for skill in SKILLS_LIST
+                    if skill.lower() in text_lower
+                ]
+
+                missing_skills = [
+                    skill for skill in SKILLS_LIST
+                    if skill not in found_skills
+                ]
+
+                resume_score = min(100, 30 + len(found_skills) * 7)
+                suggestions = []
+
+                if len(found_skills) < 5:
+                    suggestions.append("Add more relevant technical skills.")
+                if "education" not in text_lower:
+                    suggestions.append("Add your education details.")
+                if "experience" not in text_lower:
+                    suggestions.append("Add your work experience or internship details.")
+                if "project" not in text_lower:
+                    suggestions.append("Add academic or personal projects.")
+                if "objective" not in text_lower:
+                    suggestions.append("Add a clear career objective.")
+                if not suggestions:
+                    suggestions.append("Your resume has good basic information. Keep it updated.")
+
+                save_resume_analysis(
+                    candidate_id,
+                    filename,
+                    resume_score,
+                    found_skills,
+                    missing_skills,
+                    suggestions
+                )
+
+                analysis = get_resume_analysis(candidate_id)
+
+            except Exception as error:
+                print("Recruiter resume analysis error:", repr(error))
+
+    requests = conn.execute("""
+        SELECT
+            recruiter_requests.*,
+            jobs.title AS job_title,
+            jobs.company
+        FROM recruiter_requests
+        LEFT JOIN jobs ON recruiter_requests.job_id = jobs.id
+        WHERE recruiter_requests.recruiter_id = ?
+        AND recruiter_requests.candidate_id = ?
+        ORDER BY recruiter_requests.created_at DESC
+    """, (session["user_id"], candidate_id)).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "recruiter_candidate_profile.html",
+        candidate=candidate,
+        jobs=jobs,
+        applications=applications,
+        analysis=analysis,
+        interview=interview,
+        requests=requests
+    )
+
+
+# =========================================================
+# RECRUITER - VIEW CANDIDATE RESUME
+# =========================================================
+
+@app.route("/recruiter/candidate/<int:candidate_id>/resume")
+def recruiter_candidate_resume(candidate_id):
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("user_role", "").lower() != "recruiter":
+        return redirect(url_for("dashboard"))
+
+    conn = get_db()
+    allowed = conn.execute("""
+        SELECT 1
+        FROM users
+        WHERE id = ? AND role = 'candidate'
+    """, (candidate_id,)).fetchone()
+    conn.close()
+
+    if not allowed:
+        return redirect(url_for("recruiter_candidates"))
+
+    filename, filepath = get_latest_resume_for_user(candidate_id)
+
+    if not filepath:
+        return "<h2>Resume not available.</h2><a href='/recruiter/candidates'>Back to Candidates</a>"
+
+    from flask import send_file
+    return send_file(filepath, as_attachment=False, download_name=filename)
 
 
 # =========================================================
@@ -1102,6 +1388,96 @@ def get_latest_resume():
     print("================================")
 
     return filename, filepath
+
+
+def get_latest_resume_for_user(user_id):
+
+    upload_folder = os.path.abspath(app.config["UPLOAD_FOLDER"])
+
+    if not os.path.exists(upload_folder):
+        return None, None
+
+    user_files = []
+
+    for filename in os.listdir(upload_folder):
+        if filename.startswith(f"{user_id}_"):
+            full_path = os.path.join(upload_folder, filename)
+            if os.path.isfile(full_path):
+                user_files.append(filename)
+
+    if not user_files:
+        return None, None
+
+    user_files.sort(
+        key=lambda filename: os.path.getmtime(
+            os.path.join(upload_folder, filename)
+        ),
+        reverse=True
+    )
+
+    filename = user_files[0]
+    return filename, os.path.join(upload_folder, filename)
+
+
+# =========================================================
+# SAVE / GET RESUME ANALYSIS
+# =========================================================
+
+def save_resume_analysis(
+    candidate_id,
+    filename,
+    score,
+    skills,
+    missing_skills,
+    suggestions
+):
+
+    conn = get_db()
+
+    conn.execute("""
+        INSERT INTO resume_analysis
+        (
+            candidate_id,
+            filename,
+            score,
+            skills,
+            missing_skills,
+            suggestions
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(candidate_id) DO UPDATE SET
+            filename = excluded.filename,
+            score = excluded.score,
+            skills = excluded.skills,
+            missing_skills = excluded.missing_skills,
+            suggestions = excluded.suggestions,
+            analyzed_at = CURRENT_TIMESTAMP
+    """, (
+        candidate_id,
+        filename,
+        int(score),
+        json.dumps(skills),
+        json.dumps(missing_skills),
+        json.dumps(suggestions)
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def get_resume_analysis(candidate_id):
+
+    conn = get_db()
+
+    result = conn.execute("""
+        SELECT *
+        FROM resume_analysis
+        WHERE candidate_id = ?
+    """, (candidate_id,)).fetchone()
+
+    conn.close()
+
+    return result
 
 
 # =========================================================
@@ -1420,6 +1796,15 @@ def resume_analysis():
         suggestions.append(
             "Your resume has good basic information. Keep it updated."
         )
+
+    save_resume_analysis(
+        session["user_id"],
+        filename,
+        score,
+        found_skills,
+        missing_skills,
+        suggestions
+    )
 
     return render_template(
         "resume_analysis.html",
@@ -1952,6 +2337,206 @@ def update_application_status(
     return redirect(
         url_for("recruiter_candidates")
     )
+
+
+# =========================================================
+# RECRUITER - SEND REQUEST TO CANDIDATE
+# =========================================================
+
+@app.route("/recruiter/candidate/<int:candidate_id>/request", methods=["POST"])
+def send_candidate_request(candidate_id):
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("user_role", "").lower() != "recruiter":
+        return redirect(url_for("dashboard"))
+
+    request_type = request.form.get("request_type", "job").strip().lower()
+    job_id = request.form.get("job_id", "").strip() or None
+    message = request.form.get("message", "").strip()
+
+    if request_type not in ["job", "interview"]:
+        return redirect(url_for("recruiter_candidate_profile", candidate_id=candidate_id))
+
+    conn = get_db()
+
+    candidate = conn.execute("""
+        SELECT id, name
+        FROM users
+        WHERE id = ? AND role = 'candidate'
+    """, (candidate_id,)).fetchone()
+
+    if not candidate:
+        conn.close()
+        return redirect(url_for("recruiter_candidates"))
+
+    job = None
+    if job_id:
+        job = conn.execute("""
+            SELECT id, title, company
+            FROM jobs
+            WHERE id = ? AND recruiter_id = ?
+        """, (job_id, session["user_id"])).fetchone()
+
+    if request_type == "job" and not job:
+        conn.close()
+        return redirect(url_for("recruiter_candidate_profile", candidate_id=candidate_id))
+
+    duplicate = conn.execute("""
+        SELECT id
+        FROM recruiter_requests
+        WHERE recruiter_id = ?
+        AND candidate_id = ?
+        AND request_type = ?
+        AND status = 'Pending'
+        AND (job_id = ? OR (? IS NULL AND job_id IS NULL))
+        LIMIT 1
+    """, (
+        session["user_id"],
+        candidate_id,
+        request_type,
+        job_id,
+        job_id
+    )).fetchone()
+
+    if duplicate:
+        conn.close()
+        return redirect(url_for("recruiter_candidate_profile", candidate_id=candidate_id))
+
+    cursor = conn.execute("""
+        INSERT INTO recruiter_requests
+        (recruiter_id, candidate_id, job_id, request_type, message)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        session["user_id"],
+        candidate_id,
+        job_id,
+        request_type,
+        message
+    ))
+
+    request_id = cursor.lastrowid
+
+    if request_type == "job":
+        notification_message = (
+            f"📢 Recruiter invited you to apply for {job['title']} at {job['company']}."
+        )
+    else:
+        notification_message = (
+            "🎤 A recruiter invited you to complete an AI interview. "
+            "Open Requests to respond."
+        )
+
+    conn.execute("""
+        INSERT INTO notifications
+        (candidate_id, application_id, message)
+        VALUES (?, NULL, ?)
+    """, (candidate_id, notification_message))
+
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("recruiter_candidate_profile", candidate_id=candidate_id))
+
+
+# =========================================================
+# CANDIDATE - REQUESTS
+# =========================================================
+
+@app.route("/requests")
+def candidate_requests():
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("user_role", "").lower() != "candidate":
+        return redirect(url_for("dashboard"))
+
+    conn = get_db()
+
+    requests_list = conn.execute("""
+        SELECT
+            recruiter_requests.*,
+            users.name AS recruiter_name,
+            users.email AS recruiter_email,
+            jobs.title AS job_title,
+            jobs.company,
+            jobs.location,
+            jobs.skills
+        FROM recruiter_requests
+        JOIN users ON recruiter_requests.recruiter_id = users.id
+        LEFT JOIN jobs ON recruiter_requests.job_id = jobs.id
+        WHERE recruiter_requests.candidate_id = ?
+        ORDER BY recruiter_requests.created_at DESC
+    """, (session["user_id"],)).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "candidate_requests.html",
+        requests=requests_list,
+        name=session.get("user_name", "Candidate")
+    )
+
+
+# =========================================================
+# CANDIDATE - ACCEPT / DECLINE REQUEST
+# =========================================================
+
+@app.route("/requests/<int:request_id>/<action>", methods=["POST"])
+def respond_to_request(request_id, action):
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("user_role", "").lower() != "candidate":
+        return redirect(url_for("dashboard"))
+
+    if action not in ["accept", "decline"]:
+        return redirect(url_for("candidate_requests"))
+
+    conn = get_db()
+
+    item = conn.execute("""
+        SELECT *
+        FROM recruiter_requests
+        WHERE id = ? AND candidate_id = ?
+    """, (request_id, session["user_id"])).fetchone()
+
+    if not item or item["status"] != "Pending":
+        conn.close()
+        return redirect(url_for("candidate_requests"))
+
+    new_status = "Accepted" if action == "accept" else "Declined"
+
+    conn.execute("""
+        UPDATE recruiter_requests
+        SET status = ?
+        WHERE id = ?
+    """, (new_status, request_id))
+
+    if action == "accept" and item["request_type"] == "job" and item["job_id"]:
+
+        existing = conn.execute("""
+            SELECT id
+            FROM applications
+            WHERE job_id = ? AND candidate_id = ?
+        """, (item["job_id"], session["user_id"])).fetchone()
+
+        if not existing:
+            conn.execute("""
+                INSERT INTO applications (job_id, candidate_id, status)
+                VALUES (?, ?, 'Applied')
+            """, (item["job_id"], session["user_id"]))
+
+    conn.commit()
+    conn.close()
+
+    if action == "accept" and item["request_type"] == "interview":
+        return redirect(url_for("interview"))
+
+    return redirect(url_for("candidate_requests"))
 
 
 # =========================================================
@@ -2695,6 +3280,35 @@ def interview_result():
     else:
 
         message = "You Need More Practice. 📚"
+
+    conn = get_db()
+
+    conn.execute("""
+        INSERT INTO interview_results
+        (
+            candidate_id,
+            score,
+            total,
+            percentage,
+            message,
+            questions,
+            answers,
+            scores
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        session["user_id"],
+        score,
+        total,
+        percentage,
+        message,
+        json.dumps(session.get("interview_questions", [])),
+        json.dumps(session.get("interview_answers", [])),
+        json.dumps(session.get("interview_scores", []))
+    ))
+
+    conn.commit()
+    conn.close()
 
     return render_template(
         "interview_result.html",
