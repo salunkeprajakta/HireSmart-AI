@@ -2255,15 +2255,11 @@ Resume:
     return render_template(
         "upload_resume.html"
     )
-
-
 # =========================================================
 # RESUME ANALYSIS
 # =========================================================
 
-@app.route(
-    "/resume_analysis"
-)
+@app.route("/resume_analysis")
 def resume_analysis():
 
     if "user_id" not in session:
@@ -2272,54 +2268,378 @@ def resume_analysis():
             url_for("login")
         )
 
-    filename, filepath = (
-        get_latest_resume()
-    )
+    # -----------------------------------------------------
+    # GET LATEST RESUME
+    # -----------------------------------------------------
 
-    if not filepath:
+    filename, filepath = get_latest_resume()
+
+    if not filename or not filepath:
 
         return render_template(
             "resume_analysis.html",
-            error=(
-                "Please upload your "
-                "resume first."
-            )
+
+            filename="No Resume",
+
+            skills=[],
+
+            missing_skills=[],
+
+            score=0,
+
+            suggestions=[
+                "Please upload your resume first."
+            ],
+
+            resume_text="",
+
+            resume_information={}
         )
 
-    resume_text = extract_resume_text(
-        filepath
-    )
+    # -----------------------------------------------------
+    # CHECK FILE
+    # -----------------------------------------------------
+
+    if not os.path.isfile(filepath):
+
+        return render_template(
+            "resume_analysis.html",
+
+            filename=filename,
+
+            skills=[],
+
+            missing_skills=[],
+
+            score=0,
+
+            suggestions=[
+                "Resume file was not found.",
+                "Please upload your resume again."
+            ],
+
+            resume_text="",
+
+            resume_information={}
+        )
+
+    # -----------------------------------------------------
+    # EXTRACT RESUME TEXT
+    # -----------------------------------------------------
+
+    try:
+
+        resume_text = extract_resume_text(
+            filepath
+        )
+
+    except Exception as error:
+
+        print(
+            "Resume extraction error:",
+            repr(error)
+        )
+
+        return render_template(
+            "resume_analysis.html",
+
+            filename=filename,
+
+            skills=[],
+
+            missing_skills=[],
+
+            score=0,
+
+            suggestions=[
+                "Could not read your resume.",
+                "Please upload a text-based PDF or DOCX file."
+            ],
+
+            resume_text="",
+
+            resume_information={}
+        )
+
+    # -----------------------------------------------------
+    # EMPTY RESUME CHECK
+    # -----------------------------------------------------
+
+    if not resume_text or not resume_text.strip():
+
+        return render_template(
+            "resume_analysis.html",
+
+            filename=filename,
+
+            skills=[],
+
+            missing_skills=[],
+
+            score=0,
+
+            suggestions=[
+                "Could not extract text from this resume.",
+                "Please upload a text-based PDF or DOCX file.",
+                "Scanned/image-only PDFs may not be readable."
+            ],
+
+            resume_text="",
+
+            resume_information={}
+        )
+
+    # -----------------------------------------------------
+    # NORMALIZE TEXT
+    # -----------------------------------------------------
 
     text_lower = resume_text.lower()
 
-    found_skills = [
+    # -----------------------------------------------------
+    # DETECT SKILLS
+    # -----------------------------------------------------
 
-        skill
+    found_skills = []
 
-        for skill
-        in SKILLS_LIST
+    for skill in SKILLS_LIST:
 
-        if skill.lower()
-        in text_lower
-    ]
+        if skill.lower() in text_lower:
 
-    missing_skills = [
+            found_skills.append(
+                skill
+            )
 
-        skill
-
-        for skill
-        in SKILLS_LIST
-
-        if skill not in found_skills
-    ]
-
-    resume_score = min(
-        100,
-        30 + len(found_skills) * 7
+    # Remove duplicates
+    found_skills = list(
+        dict.fromkeys(found_skills)
     )
 
-    suggestions = []
+    # -----------------------------------------------------
+    # MISSING SKILLS
+    # -----------------------------------------------------
 
+    missing_skills = []
+
+    for skill in SKILLS_LIST:
+
+        if skill not in found_skills:
+
+            missing_skills.append(
+                skill
+            )
+
+    # -----------------------------------------------------
+    # RESUME SCORE
+    # -----------------------------------------------------
+
+    score = 30 + (
+        len(found_skills) * 7
+    )
+
+    if score > 100:
+
+        score = 100
+
+    # -----------------------------------------------------
+    # RESUME INFORMATION
+    # -----------------------------------------------------
+
+    import re
+
+    # Email
+    email_match = re.search(
+        r'[\w\.-]+@[\w\.-]+\.\w+',
+        resume_text
+    )
+
+    email = (
+        email_match.group(0)
+        if email_match
+        else "Not detected"
+    )
+
+    # Phone
+    phone_match = re.search(
+        r'(\+91[\s-]?)?[6-9]\d{9}',
+        resume_text
+    )
+
+    phone = (
+        phone_match.group(0)
+        if phone_match
+        else "Not detected"
+    )
+
+    # -----------------------------------------------------
+    # NAME DETECTION
+    # -----------------------------------------------------
+
+    lines = [
+        line.strip()
+        for line in resume_text.splitlines()
+        if line.strip()
+    ]
+
+    detected_name = "Not detected"
+
+    if lines:
+
+        first_line = lines[0]
+
+        if (
+            len(first_line) <= 60
+            and "@" not in first_line
+            and not any(
+                character.isdigit()
+                for character in first_line
+            )
+        ):
+
+            detected_name = first_line
+
+    # -----------------------------------------------------
+    # EDUCATION
+    # -----------------------------------------------------
+
+    education = "Not detected"
+
+    education_keywords = [
+        "bachelor",
+        "b.tech",
+        "b.e",
+        "bca",
+        "b.sc",
+        "mca",
+        "m.tech",
+        "m.sc",
+        "master",
+        "degree",
+        "engineering",
+        "computer science",
+        "information technology",
+        "university",
+        "college",
+        "education"
+    ]
+
+    education_lines = []
+
+    for line in lines:
+
+        lower_line = line.lower()
+
+        if any(
+            keyword in lower_line
+            for keyword in education_keywords
+        ):
+
+            education_lines.append(
+                line
+            )
+
+    if education_lines:
+
+        education = " | ".join(
+            education_lines[:5]
+        )
+
+    # -----------------------------------------------------
+    # EXPERIENCE
+    # -----------------------------------------------------
+
+    experience = "Not detected"
+
+    experience_keywords = [
+        "experience",
+        "intern",
+        "internship",
+        "developer",
+        "software engineer",
+        "worked at",
+        "employment"
+    ]
+
+    experience_lines = []
+
+    for line in lines:
+
+        lower_line = line.lower()
+
+        if any(
+            keyword in lower_line
+            for keyword in experience_keywords
+        ):
+
+            experience_lines.append(
+                line
+            )
+
+    if experience_lines:
+
+        experience = " | ".join(
+            experience_lines[:5]
+        )
+
+    # -----------------------------------------------------
+    # PROJECTS
+    # -----------------------------------------------------
+
+    projects = "Not detected"
+
+    project_lines = []
+
+    for line in lines:
+
+        lower_line = line.lower()
+
+        if (
+            "project" in lower_line
+            or
+            "developed" in lower_line
+            or
+            "built" in lower_line
+        ):
+
+            project_lines.append(
+                line
+            )
+
+    if project_lines:
+
+        projects = " | ".join(
+            project_lines[:5]
+        )
+
+    # -----------------------------------------------------
+    # RESUME INFORMATION DICTIONARY
+    # -----------------------------------------------------
+
+    resume_information = {
+
+        "name": detected_name,
+
+        "email": email,
+
+        "phone": phone,
+
+        "education": education,
+
+        "experience": experience,
+
+        "projects": projects,
+
+        "skills_count": len(
+            found_skills
+        ),
+
+        "resume_filename": filename
+    }
+
+    # -----------------------------------------------------
+    # SUGGESTIONS
+    # -----------------------------------------------------
+
+    suggestions = []
 
     if len(found_skills) < 5:
 
@@ -2327,54 +2647,78 @@ def resume_analysis():
             "Add more relevant technical skills."
         )
 
+    if email == "Not detected":
 
-    if "education" not in text_lower:
+        suggestions.append(
+            "Add a professional email address."
+        )
+
+    if phone == "Not detected":
+
+        suggestions.append(
+            "Add your contact number."
+        )
+
+    if education == "Not detected":
 
         suggestions.append(
             "Add your education details."
         )
 
-
-    if "experience" not in text_lower:
-
-        suggestions.append(
-            "Add your work experience or internship details."
-        )
-
-
-    if "project" not in text_lower:
+    if experience == "Not detected":
 
         suggestions.append(
-            "Add academic or personal projects."
+            "Add your internship or work experience."
         )
 
+    if projects == "Not detected":
+
+        suggestions.append(
+            "Add your academic or personal projects."
+        )
 
     if not suggestions:
 
         suggestions.append(
-            "Your resume has good basic information. Keep it updated."
+            "Your resume contains good basic information. Keep it updated."
         )
 
+    # -----------------------------------------------------
+    # SAVE ANALYSIS
+    # -----------------------------------------------------
 
     save_resume_analysis(
         session["user_id"],
         filename,
-        resume_score,
+        score,
         found_skills,
         missing_skills,
         suggestions
     )
 
-    analysis = get_resume_analysis(
-        session["user_id"]
-    )
+    # -----------------------------------------------------
+    # RENDER PAGE
+    # -----------------------------------------------------
 
     return render_template(
-        "resume_analysis.html",
-        analysis=analysis,
-        filename=filename
-    )
 
+        "resume_analysis.html",
+
+        filename=filename,
+
+        skills=found_skills,
+
+        missing_skills=missing_skills,
+
+        score=score,
+
+        suggestions=suggestions,
+
+        resume_text=resume_text,
+
+        resume_information=
+        resume_information
+    )
 
 # =========================================================
 # SKILL ANALYSIS
