@@ -4,6 +4,7 @@ import sqlite3
 import os
 import time
 import json
+import re
 
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,11 +30,7 @@ app.secret_key = os.getenv(
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-
-# Secure cookie only on HTTPS/Vercel
-app.config["SESSION_COOKIE_SECURE"] = bool(
-    os.getenv("VERCEL")
-)
+app.config["SESSION_COOKIE_SECURE"] = bool(os.getenv("VERCEL"))
 
 
 # =========================================================
@@ -55,69 +52,45 @@ if os.getenv("VERCEL"):
 else:
     UPLOAD_FOLDER = "uploads"
 
-ALLOWED_EXTENSIONS = {
-    "pdf",
-    "docx"
-}
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-os.makedirs(
-    UPLOAD_FOLDER,
-    exist_ok=True
-)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # =========================================================
 # GEMINI CONFIGURATION
 # =========================================================
 
-GEMINI_API_KEY = os.getenv(
-    "GEMINI_API_KEY"
-)
-
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-3.6-flash"
+    "gemini-3.8-flash"
 )
 
 gemini_client = None
-
 
 if (
     GEMINI_API_KEY
     and GEMINI_API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE"
 ):
-
     try:
-
-        gemini_client = genai.Client(
-            api_key=GEMINI_API_KEY
-        )
-
-        print(
-            "Gemini client initialized successfully."
-        )
-
-        print(
-            "Gemini model:",
-            GEMINI_MODEL
-        )
-
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("================================")
+        print("Gemini client initialized successfully.")
+        print("Model:", GEMINI_MODEL)
+        print("================================")
     except Exception as error:
-
         gemini_client = None
-
-        print(
-            "Gemini initialization error:",
-            error
-        )
-
+        print("================================")
+        print("GEMINI INITIALIZATION ERROR")
+        print("TYPE:", type(error).__name__)
+        print("ERROR:", str(error))
+        print("================================")
 else:
-
-    print(
-        "WARNING: GEMINI_API_KEY is not configured."
-    )
+    print("================================")
+    print("WARNING: GEMINI API KEY NOT CONFIGURED")
+    print("================================")
 
 
 # =========================================================
@@ -125,7 +98,6 @@ else:
 # =========================================================
 
 SKILLS_LIST = [
-
     "Python",
     "Java",
     "C",
@@ -134,111 +106,230 @@ SKILLS_LIST = [
     "HTML",
     "CSS",
     "SQL",
-
     "Flask",
     "Django",
     "React",
     "Node.js",
-
     "Machine Learning",
     "Deep Learning",
     "Artificial Intelligence",
     "AI",
-
     "Data Science",
     "Data Analysis",
-
     "Pandas",
     "NumPy",
     "TensorFlow",
     "PyTorch",
     "Scikit-learn",
-
     "Git",
     "GitHub",
-
     "MySQL",
     "SQLite",
     "MongoDB",
-
     "REST API",
     "API",
-
     "AWS",
     "Azure",
-
     "Power BI",
     "Excel",
-
     "Communication",
     "Leadership"
 ]
 
 
 # =========================================================
-# ASK GEMINI
+# GEMINI HELPERS
 # =========================================================
 
 def ask_gemini(prompt):
-
     if gemini_client is None:
-
+        print("Gemini client is not initialized.")
         return ""
 
     try:
-
         response = gemini_client.interactions.create(
             model=GEMINI_MODEL,
             input=prompt
         )
 
-        result = getattr(
-            response,
-            "output_text",
-            ""
-        )
-
-        return (
-            result or ""
-        ).strip()
+        result = getattr(response, "output_text", "") or ""
+        return result.strip()
 
     except Exception as error:
-
-        print(
-            "GEMINI ERROR:",
-            type(error).__name__,
-            str(error)
-        )
-
+        print("================================")
+        print("GEMINI ERROR")
+        print("TYPE:", type(error).__name__)
+        print("ERROR:", str(error))
+        print("DETAIL:", repr(error))
+        print("================================")
         return ""
 
 
+def generate_first_interview_question(
+    resume_text,
+    interview_type,
+    total_questions
+):
+    fallback = (
+        "Tell me about the most important project or "
+        "experience mentioned in your resume."
+    )
+
+    if gemini_client is None:
+        return fallback, None
+
+    prompt = f"""
+You are conducting a professional job interview.
+
+INTERVIEW TYPE:
+{interview_type}
+
+TOTAL QUESTIONS:
+{total_questions}
+
+CANDIDATE RESUME:
+{resume_text[:30000]}
+
+Generate ONLY the FIRST interview question.
+
+Rules:
+1. Base the question directly on the candidate's resume.
+2. For HR interviews, focus on experience, projects,
+   achievements, responsibilities, education and career.
+3. For Technical interviews, focus on technologies,
+   projects, implementation, programming, databases,
+   architecture and technical decisions.
+4. Ask exactly ONE question.
+5. Make it specific to the candidate.
+6. Do not number the question.
+7. Do not give an answer.
+8. Do not add explanations.
+"""
+
+    try:
+        interaction = gemini_client.interactions.create(
+            model=GEMINI_MODEL,
+            input=prompt
+        )
+
+        question = (
+            getattr(interaction, "output_text", "") or ""
+        ).strip()
+
+        if not question:
+            question = fallback
+
+        return question, getattr(interaction, "id", None)
+
+    except Exception as error:
+        print("FIRST INTERVIEW QUESTION ERROR:", repr(error))
+        return fallback, None
+
+
+def generate_followup_question(
+    previous_interaction_id,
+    answer,
+    interview_type,
+    question_number,
+    total_questions
+):
+    fallback = "Can you explain that experience in more detail?"
+
+    if gemini_client is None or not previous_interaction_id:
+        return fallback, previous_interaction_id
+
+    prompt = f"""
+Continue the interview.
+
+Interview type:
+{interview_type}
+
+This is question {question_number} of {total_questions}.
+
+The candidate has just answered the previous question.
+
+Candidate answer:
+{answer}
+
+Generate ONLY the NEXT interview question.
+
+Rules:
+1. Ask exactly ONE question.
+2. Make it a meaningful follow-up based on the candidate's answer.
+3. Keep it relevant to the candidate's resume and interview type.
+4. Do not repeat the previous question.
+5. Do not give an answer.
+6. Do not add explanations.
+7. Do not add numbering.
+"""
+
+    try:
+        interaction = gemini_client.interactions.create(
+            model=GEMINI_MODEL,
+            input=prompt,
+            previous_interaction_id=previous_interaction_id
+        )
+
+        question = (
+            getattr(interaction, "output_text", "") or ""
+        ).strip()
+
+        if not question:
+            question = fallback
+
+        return question, getattr(interaction, "id", previous_interaction_id)
+
+    except Exception as error:
+        print("FOLLOW-UP QUESTION ERROR:", repr(error))
+        return fallback, previous_interaction_id
+
+
+def check_interview_answer(question, answer):
+    if not answer.strip():
+        return 0
+
+    prompt = f"""
+Rate this interview answer from 0 to 5.
+
+Return ONLY the integer score.
+
+Question:
+{question}
+
+Answer:
+{answer}
+"""
+
+    result = ask_gemini(prompt)
+
+    try:
+        first_token = result.strip().split()[0]
+        score = int(float(first_token))
+        return max(0, min(5, score))
+    except Exception:
+        word_count = len(answer.split())
+        if word_count >= 60:
+            return 5
+        if word_count >= 35:
+            return 4
+        if word_count >= 15:
+            return 3
+        if word_count >= 5:
+            return 2
+        return 1
+
+
 # =========================================================
-# DATABASE CONNECTION
+# DATABASE HELPERS
 # =========================================================
 
 def get_db():
-
-    conn = sqlite3.connect(
-        DATABASE
-    )
-
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
-
     return conn
 
 
-# =========================================================
-# ADD COLUMN IF MISSING
-# =========================================================
-
-def add_column_if_missing(
-    conn,
-    table,
-    column,
-    definition
-):
-
+def add_column_if_missing(conn, table, column, definition):
     columns = {
         row["name"]
         for row in conn.execute(
@@ -247,234 +338,139 @@ def add_column_if_missing(
     }
 
     if column not in columns:
-
         conn.execute(
-            f"""
-            ALTER TABLE {table}
-            ADD COLUMN {column} {definition}
-            """
+            f"ALTER TABLE {table} ADD COLUMN {column} {definition}"
         )
 
 
-# =========================================================
-# CREATE DATABASE TABLES
-# =========================================================
-
 def create_table():
-
     conn = get_db()
 
     # -----------------------------------------------------
     # USERS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             name TEXT NOT NULL,
-
             email TEXT UNIQUE NOT NULL,
-
             password TEXT NOT NULL,
-
             role TEXT NOT NULL,
-
             phone TEXT,
-
             education TEXT,
-
             skills TEXT,
-
             experience TEXT,
-
             resume_score INTEGER,
-
             resume_skills TEXT,
-
             resume_analysis TEXT,
-
             resume_suggestions TEXT
         )
         """
     )
 
-    user_columns = [
-
+    for column, definition in [
         ("phone", "TEXT"),
-
         ("education", "TEXT"),
-
         ("skills", "TEXT"),
-
         ("experience", "TEXT"),
-
         ("resume_score", "INTEGER"),
-
         ("resume_skills", "TEXT"),
-
         ("resume_analysis", "TEXT"),
-
-        ("resume_suggestions", "TEXT")
-    ]
-
-    for column, definition in user_columns:
-
-        add_column_if_missing(
-            conn,
-            "users",
-            column,
-            definition
-        )
-
+        ("resume_suggestions", "TEXT"),
+    ]:
+        add_column_if_missing(conn, "users", column, definition)
 
     # -----------------------------------------------------
     # JOBS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS jobs (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             recruiter_id INTEGER NOT NULL,
-
             title TEXT NOT NULL,
-
             company TEXT NOT NULL,
-
             location TEXT NOT NULL,
-
             skills TEXT NOT NULL,
-
             description TEXT,
-
-            created_at TIMESTAMP
-                DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-
 
     # -----------------------------------------------------
     # APPLICATIONS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS applications (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             job_id INTEGER NOT NULL,
-
             candidate_id INTEGER NOT NULL,
-
             status TEXT DEFAULT 'Applied',
-
-            applied_at TIMESTAMP
-                DEFAULT CURRENT_TIMESTAMP
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-
 
     # -----------------------------------------------------
     # NOTIFICATIONS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS notifications (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             candidate_id INTEGER NOT NULL,
-
             application_id INTEGER,
-
             message TEXT NOT NULL,
-
             is_read INTEGER DEFAULT 0,
-
-            created_at TIMESTAMP
-                DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-
 
     # -----------------------------------------------------
     # RECRUITER REQUESTS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS recruiter_requests (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             recruiter_id INTEGER NOT NULL,
-
             candidate_id INTEGER NOT NULL,
-
             job_id INTEGER,
-
             request_type TEXT NOT NULL,
-
             message TEXT,
-
             status TEXT DEFAULT 'Pending',
-
-            created_at TIMESTAMP
-                DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-
 
     # -----------------------------------------------------
     # INTERVIEW RESULTS
     # -----------------------------------------------------
-
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS interview_results (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             candidate_id INTEGER NOT NULL,
-
             score INTEGER,
-
             feedback TEXT,
-
-            created_at TIMESTAMP
-                DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
 
-    interview_columns = [
-
+    for column, definition in [
         ("total", "INTEGER"),
-
         ("percentage", "INTEGER"),
-
         ("message", "TEXT"),
-
         ("questions", "TEXT"),
-
         ("answers", "TEXT"),
-
-        ("scores", "TEXT")
-    ]
-
-    for column, definition in interview_columns:
-
+        ("scores", "TEXT"),
+    ]:
         add_column_if_missing(
             conn,
             "interview_results",
@@ -482,159 +478,107 @@ def create_table():
             definition
         )
 
+    # -----------------------------------------------------
+    # ACTIVE INTERVIEWS
+    # -----------------------------------------------------
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS active_interviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            duration INTEGER NOT NULL,
+            total_questions INTEGER NOT NULL,
+            interview_type TEXT NOT NULL,
+            start_time REAL NOT NULL,
+            current_index INTEGER DEFAULT 0,
+            current_question TEXT,
+            questions TEXT,
+            answers TEXT,
+            scores TEXT,
+            interaction_id TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_active_interviews_candidate
+        ON active_interviews(candidate_id, status)
+        """
+    )
 
     conn.commit()
-
     conn.close()
 
 
 # =========================================================
-# FILE VALIDATION
+# FILE / RESUME HELPERS
 # =========================================================
 
 def allowed_file(filename):
-
     return (
         "." in filename
-        and
-        filename.rsplit(
-            ".",
-            1
-        )[1].lower()
-        in ALLOWED_EXTENSIONS
+        and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
 
 
-# =========================================================
-# EXTRACT RESUME TEXT
-# =========================================================
-
 def extract_resume_text(filepath):
-
-    extension = filepath.rsplit(
-        ".",
-        1
-    )[1].lower()
-
+    extension = filepath.rsplit(".", 1)[1].lower()
     parts = []
 
     try:
-
         if extension == "pdf":
-
-            reader = PdfReader(
-                filepath
-            )
-
+            reader = PdfReader(filepath)
             for page in reader.pages:
-
-                text = page.extract_text()
-
-                if text:
-
-                    parts.append(
-                        text
-                    )
+                page_text = page.extract_text()
+                if page_text:
+                    parts.append(page_text)
 
         elif extension == "docx":
-
-            document = Document(
-                filepath
-            )
-
+            document = Document(filepath)
             for paragraph in document.paragraphs:
-
                 if paragraph.text:
-
-                    parts.append(
-                        paragraph.text
-                    )
+                    parts.append(paragraph.text)
 
     except Exception as error:
+        print("RESUME TEXT EXTRACTION ERROR:", repr(error))
 
-        print(
-            "RESUME EXTRACTION ERROR:",
-            error
-        )
-
-    return "\n".join(
-        parts
-    ).strip()
+    return "\n".join(parts).strip()
 
 
-# =========================================================
-# GET LATEST RESUME
-# =========================================================
+def get_latest_resume_for_user(user_id):
+    prefix = f"{user_id}_"
+    folder = app.config["UPLOAD_FOLDER"]
 
-def get_latest_resume_for_user(
-    user_id
-):
-
-    prefix = (
-        f"{user_id}_"
-    )
-
-    folder = app.config[
-        "UPLOAD_FOLDER"
-    ]
-
-    if not os.path.isdir(
-        folder
-    ):
-
+    if not os.path.isdir(folder):
         return None, None
 
     files = [
-
         filename
-
-        for filename
-        in os.listdir(folder)
-
-        if filename.startswith(prefix)
-        and allowed_file(filename)
+        for filename in os.listdir(folder)
+        if filename.startswith(prefix) and allowed_file(filename)
     ]
 
     if not files:
-
         return None, None
 
     files.sort(
-
-        key=lambda filename:
-        os.path.getmtime(
-            os.path.join(
-                folder,
-                filename
-            )
+        key=lambda filename: os.path.getmtime(
+            os.path.join(folder, filename)
         ),
-
         reverse=True
     )
 
     filename = files[0]
-
-    filepath = os.path.join(
-        folder,
-        filename
-    )
-
-    return (
-        filename,
-        filepath
-    )
+    filepath = os.path.join(folder, filename)
+    return filename, filepath
 
 
 def get_latest_resume():
+    return get_latest_resume_for_user(session["user_id"])
 
-    return get_latest_resume_for_user(
-        session["user_id"]
-    )
-
-
-# =========================================================
-# SAVE RESUME ANALYSIS
-# =========================================================
 
 def save_resume_analysis(
     user_id,
@@ -645,56 +589,36 @@ def save_resume_analysis(
     suggestions,
     analysis=None
 ):
-
-    conn = get_db()
-
     if analysis is None:
-
         analysis = (
-            f"Detected "
-            f"{len(skills)} "
-            f"relevant skills "
-            f"in {filename}."
+            f"Detected {len(skills)} relevant skills in {filename}."
         )
 
+    conn = get_db()
     conn.execute(
         """
         UPDATE users
-
         SET
             resume_score = ?,
             resume_skills = ?,
             resume_analysis = ?,
             resume_suggestions = ?
-
         WHERE id = ?
         """,
         (
             score,
             ", ".join(skills),
             analysis,
-            "\n".join(
-                suggestions
-            ),
+            "\n".join(suggestions),
             user_id
         )
     )
-
     conn.commit()
-
     conn.close()
 
 
-# =========================================================
-# GET RESUME ANALYSIS
-# =========================================================
-
-def get_resume_analysis(
-    user_id
-):
-
+def get_resume_analysis(user_id):
     conn = get_db()
-
     row = conn.execute(
         """
         SELECT
@@ -702,129 +626,13 @@ def get_resume_analysis(
             resume_skills,
             resume_analysis,
             resume_suggestions
-
         FROM users
-
         WHERE id = ?
         """,
-        (
-            user_id,
-        )
+        (user_id,)
     ).fetchone()
-
     conn.close()
-
     return row
-
-
-# =========================================================
-# GENERATE INTERVIEW QUESTIONS
-# =========================================================
-
-def generate_resume_interview_questions(
-    resume_text
-):
-
-    prompt = f"""
-Create exactly 5 short interview questions
-for a candidate based on this resume.
-
-Return only the questions.
-
-One question per line.
-
-Do not add numbering.
-
-Resume:
-
-{resume_text[:12000]}
-"""
-
-    result = ask_gemini(
-        prompt
-    )
-
-    questions = []
-
-    for line in result.splitlines():
-
-        clean = line.strip()
-
-        clean = clean.lstrip(
-            "0123456789.-) "
-        )
-
-        if clean:
-
-            questions.append(
-                clean
-            )
-
-    return questions[:5]
-
-
-# =========================================================
-# CHECK INTERVIEW ANSWER
-# =========================================================
-
-def check_interview_answer(
-    question,
-    answer
-):
-
-    if not answer.strip():
-
-        return 0
-
-    prompt = f"""
-Rate this interview answer
-from 0 to 5.
-
-Return only the integer.
-
-Question:
-{question}
-
-Answer:
-{answer}
-"""
-
-    result = ask_gemini(
-        prompt
-    )
-
-    try:
-
-        score = int(
-            float(
-                result.strip().split()[0]
-            )
-        )
-
-        return max(
-            0,
-            min(
-                5,
-                score
-            )
-        )
-
-    except Exception:
-
-        word_count = len(
-            answer.split()
-        )
-
-        if word_count >= 60:
-            return 5
-
-        if word_count >= 35:
-            return 4
-
-        if word_count >= 15:
-            return 3
-
-        return 2
 
 
 # =========================================================
@@ -832,41 +640,21 @@ Answer:
 # =========================================================
 
 def candidate_required():
-
     if "user_id" not in session:
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    if session.get(
-        "user_role",
-        ""
-    ).lower() != "candidate":
-
-        return redirect(
-            url_for("recruiter_dashboard")
-        )
+    if session.get("user_role", "").lower() != "candidate":
+        return redirect(url_for("recruiter_dashboard"))
 
     return None
 
 
 def recruiter_required():
-
     if "user_id" not in session:
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    if session.get(
-        "user_role",
-        ""
-    ).lower() != "recruiter":
-
-        return redirect(
-            url_for("dashboard")
-        )
+    if session.get("user_role", "").lower() != "recruiter":
+        return redirect(url_for("dashboard"))
 
     return None
 
@@ -877,238 +665,114 @@ def recruiter_required():
 
 @app.route("/")
 def home():
-
     if "user_id" in session:
+        if session.get("user_role", "").lower() == "recruiter":
+            return redirect(url_for("recruiter_dashboard"))
+        return redirect(url_for("dashboard"))
 
-        if session.get(
-            "user_role",
-            ""
-        ).lower() == "recruiter":
-
-            return redirect(
-                url_for(
-                    "recruiter_dashboard"
-                )
-            )
-
-        return redirect(
-            url_for("dashboard")
-        )
-
-    return redirect(
-        url_for("register")
-    )
+    return redirect(url_for("register"))
 
 
 # =========================================================
 # REGISTER
 # =========================================================
 
-@app.route(
-    "/register",
-    methods=["GET", "POST"]
-)
+@app.route("/register", methods=["GET", "POST"])
 def register():
-
     if "user_id" in session:
-
-        if session.get(
-            "user_role",
-            ""
-        ).lower() == "recruiter":
-
-            return redirect(
-                url_for(
-                    "recruiter_dashboard"
-                )
-            )
-
-        return redirect(
-            url_for("dashboard")
-        )
+        if session.get("user_role", "").lower() == "recruiter":
+            return redirect(url_for("recruiter_dashboard"))
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        role = request.form.get("role", "Candidate").strip()
 
-        name = request.form.get(
-            "name",
-            ""
-        ).strip()
-
-        email = request.form.get(
-            "email",
-            ""
-        ).strip()
-
-        password = request.form.get(
-            "password",
-            ""
-        ).strip()
-
-        role = request.form.get(
-            "role",
-            "Candidate"
-        ).strip()
-
-        if (
-            not name
-            or not email
-            or not password
-        ):
-
+        if not name or not email or not password:
             return """
             <h2>Please fill all fields.</h2>
-            <a href="/register">
-                Go Back
-            </a>
+            <a href="/register">Go Back</a>
             """
+
+        if role.lower() not in {"candidate", "recruiter"}:
+            role = "Candidate"
 
         conn = get_db()
 
         try:
-
             conn.execute(
                 """
-                INSERT INTO users
-                (
-                    name,
-                    email,
-                    password,
-                    role
-                )
+                INSERT INTO users (name, email, password, role)
                 VALUES (?, ?, ?, ?)
                 """,
                 (
                     name,
                     email,
-                    generate_password_hash(
-                        password
-                    ),
+                    generate_password_hash(password),
                     role
                 )
             )
-
             conn.commit()
-
         except sqlite3.IntegrityError:
-
             conn.close()
-
             return """
             <h2>Email already registered.</h2>
-            <a href="/register">
-                Try Again
-            </a>
+            <a href="/register">Try Again</a>
             """
 
         conn.close()
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    return render_template(
-        "register.html"
-    )
+    return render_template("register.html")
 
 
 # =========================================================
 # LOGIN
 # =========================================================
 
-@app.route(
-    "/login",
-    methods=["GET", "POST"]
-)
+@app.route("/login", methods=["GET", "POST"])
 def login():
-
     if "user_id" in session:
-
-        if session.get(
-            "user_role",
-            ""
-        ).lower() == "recruiter":
-
-            return redirect(
-                url_for(
-                    "recruiter_dashboard"
-                )
-            )
-
-        return redirect(
-            url_for("dashboard")
-        )
+        if session.get("user_role", "").lower() == "recruiter":
+            return redirect(url_for("recruiter_dashboard"))
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
 
-        email = request.form.get(
-            "email",
-            ""
-        ).strip()
-
-        password = request.form.get(
-            "password",
-            ""
-        ).strip()
+        if not email or not password:
+            return """
+            <h2>Please enter email and password.</h2>
+            <a href="/login">Go Back</a>
+            """
 
         conn = get_db()
-
         user = conn.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE email = ?
-            """,
-            (
-                email,
-            )
+            "SELECT * FROM users WHERE email = ?",
+            (email,)
         ).fetchone()
-
         conn.close()
 
-        if (
-            user
-            and
-            check_password_hash(
-                user["password"],
-                password
-            )
-        ):
-
+        if user and check_password_hash(user["password"], password):
             session.permanent = True
-
             session["user_id"] = user["id"]
-
             session["user_name"] = user["name"]
-
             session["user_email"] = user["email"]
-
             session["user_role"] = user["role"]
 
-            if (
-                user["role"].lower()
-                == "recruiter"
-            ):
-
-                return redirect(
-                    url_for(
-                        "recruiter_dashboard"
-                    )
-                )
-
-            return redirect(
-                url_for("dashboard")
-            )
+            if user["role"].lower() == "recruiter":
+                return redirect(url_for("recruiter_dashboard"))
+            return redirect(url_for("dashboard"))
 
         return """
         <h2>Invalid email or password.</h2>
-        <a href="/login">
-            Try Again
-        </a>
+        <a href="/login">Try Again</a>
         """
 
-    return render_template(
-        "login.html"
-    )
+    return render_template("login.html")
 
 
 # =========================================================
@@ -1117,120 +781,66 @@ def login():
 
 @app.route("/logout")
 def logout():
-
     session.clear()
-
-    return redirect(
-        url_for("login")
-    )
+    return redirect(url_for("login"))
 
 
 # =========================================================
 # FORGOT PASSWORD
 # =========================================================
 
-@app.route(
-    "/forgot-password",
-    methods=["GET", "POST"]
-)
+@app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
-
     if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        new_password = request.form.get("new_password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
 
-        email = request.form.get(
-            "email",
-            ""
-        ).strip()
-
-        new_password = request.form.get(
-            "new_password",
-            ""
-        ).strip()
-
-        confirm_password = request.form.get(
-            "confirm_password",
-            ""
-        ).strip()
-
-        if (
-            not email
-            or not new_password
-            or not confirm_password
-        ):
-
+        if not email or not new_password or not confirm_password:
             return """
             <h2>Please fill all fields.</h2>
-            <a href="/forgot-password">
-                Go Back
-            </a>
+            <a href="/forgot-password">Go Back</a>
             """
 
-        if (
-            new_password
-            != confirm_password
-        ):
-
+        if new_password != confirm_password:
             return """
             <h2>Passwords do not match.</h2>
-            <a href="/forgot-password">
-                Try Again
-            </a>
+            <a href="/forgot-password">Try Again</a>
             """
 
         conn = get_db()
-
         user = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE email = ?
-            """,
-            (
-                email,
-            )
+            "SELECT id FROM users WHERE email = ?",
+            (email,)
         ).fetchone()
 
         if not user:
-
             conn.close()
-
             return """
             <h2>Email not registered.</h2>
-            <a href="/forgot-password">
-                Try Again
-            </a>
+            <a href="/forgot-password">Try Again</a>
             """
 
         conn.execute(
             """
             UPDATE users
-
             SET password = ?
-
             WHERE email = ?
             """,
             (
-                generate_password_hash(
-                    new_password
-                ),
+                generate_password_hash(new_password),
                 email
             )
         )
-
         conn.commit()
-
         conn.close()
 
         return """
         <h2>Password Reset Successful! ✅</h2>
-        <a href="/login">
-            Go to Login
-        </a>
+        <a href="/login">Go to Login</a>
         """
 
-    return render_template(
-        "forgot_password.html"
-    )
+    return render_template("forgot_password.html")
 
 
 # =========================================================
@@ -1239,23 +849,11 @@ def forgot_password():
 
 @app.route("/dashboard")
 def dashboard():
-
     if "user_id" not in session:
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    if session.get(
-        "user_role",
-        ""
-    ).lower() == "recruiter":
-
-        return redirect(
-            url_for(
-                "recruiter_dashboard"
-            )
-        )
+    if session.get("user_role", "").lower() == "recruiter":
+        return redirect(url_for("recruiter_dashboard"))
 
     conn = get_db()
 
@@ -1263,53 +861,31 @@ def dashboard():
         """
         SELECT COUNT(*)
         FROM notifications
-
         WHERE candidate_id = ?
-
         AND is_read = 0
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchone()[0]
 
     request_count = conn.execute(
         """
         SELECT COUNT(*)
         FROM recruiter_requests
-
         WHERE candidate_id = ?
-
         AND status = 'Pending'
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchone()[0]
 
     conn.close()
 
     return render_template(
         "candidate_dashboard.html",
-
-        name=session[
-            "user_name"
-        ],
-
-        email=session[
-            "user_email"
-        ],
-
-        role=session.get(
-            "user_role",
-            "Candidate"
-        ),
-
-        notification_count=
-        notification_count,
-
-        request_count=
-        request_count
+        name=session.get("user_name", "Candidate"),
+        email=session.get("user_email", ""),
+        role=session.get("user_role", "Candidate"),
+        notification_count=notification_count,
+        request_count=request_count
     )
 
 
@@ -1317,66 +893,42 @@ def dashboard():
 # RECRUITER DASHBOARD
 # =========================================================
 
-@app.route(
-    "/recruiter/dashboard"
-)
+@app.route("/recruiter/dashboard")
 def recruiter_dashboard():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
     conn = get_db()
 
-    jobs = conn.execute(
+    recruiter_jobs = conn.execute(
         """
         SELECT *
         FROM jobs
-
         WHERE recruiter_id = ?
-
         ORDER BY created_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
 
     total_applications = conn.execute(
         """
-        SELECT COUNT(*)
-
+        SELECT COUNT(a.id)
         FROM applications a
-
-        JOIN jobs j
-        ON a.job_id = j.id
-
+        JOIN jobs j ON a.job_id = j.id
         WHERE j.recruiter_id = ?
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchone()[0]
 
     conn.close()
 
     return render_template(
         "recruiter_dashboard.html",
-
-        name=session[
-            "user_name"
-        ],
-
-        email=session[
-            "user_email"
-        ],
-
-        jobs=jobs,
-
-        total_applications=
-        total_applications
+        name=session.get("user_name", "Recruiter"),
+        email=session.get("user_email", ""),
+        jobs=recruiter_jobs,
+        total_applications=total_applications
     )
 
 
@@ -1384,64 +936,26 @@ def recruiter_dashboard():
 # RECRUITER - POST JOB
 # =========================================================
 
-@app.route(
-    "/recruiter/post_job",
-    methods=["GET", "POST"]
-)
+@app.route("/recruiter/post_job", methods=["GET", "POST"])
 def post_job():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
     if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        company = request.form.get("company", "").strip()
+        location = request.form.get("location", "").strip()
+        skills = request.form.get("skills", "").strip()
+        description = request.form.get("description", "").strip()
 
-        title = request.form.get(
-            "title",
-            ""
-        ).strip()
-
-        company = request.form.get(
-            "company",
-            ""
-        ).strip()
-
-        location = request.form.get(
-            "location",
-            ""
-        ).strip()
-
-        skills = request.form.get(
-            "skills",
-            ""
-        ).strip()
-
-        description = request.form.get(
-            "description",
-            ""
-        ).strip()
-
-        if (
-            not title
-            or not company
-            or not location
-            or not skills
-        ):
-
+        if not title or not company or not location or not skills:
             return """
-            <h2>
-                Please fill all required fields.
-            </h2>
-
-            <a href="/recruiter/post_job">
-                Go Back
-            </a>
+            <h2>Please fill all required fields.</h2>
+            <a href="/recruiter/post_job">Go Back</a>
             """
 
         conn = get_db()
-
         conn.execute(
             """
             INSERT INTO jobs
@@ -1453,7 +967,6 @@ def post_job():
                 skills,
                 description
             )
-
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
@@ -1465,68 +978,43 @@ def post_job():
                 description
             )
         )
-
         conn.commit()
-
         conn.close()
 
-        return redirect(
-            url_for(
-                "recruiter_jobs"
-            )
-        )
+        return redirect(url_for("recruiter_jobs"))
 
-    return render_template(
-        "post_job.html"
-    )
+    return render_template("post_job.html")
 
 
 # =========================================================
 # RECRUITER - MY JOBS
 # =========================================================
 
-@app.route(
-    "/recruiter/jobs"
-)
+@app.route("/recruiter/jobs")
 def recruiter_jobs():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
     conn = get_db()
-
-    jobs = conn.execute(
+    jobs_list = conn.execute(
         """
         SELECT
             j.*,
-
-            COUNT(a.id)
-            AS application_count
-
+            COUNT(a.id) AS application_count
         FROM jobs j
-
-        LEFT JOIN applications a
-        ON j.id = a.job_id
-
+        LEFT JOIN applications a ON j.id = a.job_id
         WHERE j.recruiter_id = ?
-
         GROUP BY j.id
-
         ORDER BY j.created_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
-
     conn.close()
 
     return render_template(
         "recruiter_jobs.html",
-        jobs=jobs
+        jobs=jobs_list
     )
 
 
@@ -1534,110 +1022,60 @@ def recruiter_jobs():
 # RECRUITER - CANDIDATES
 # =========================================================
 
-@app.route(
-    "/recruiter/candidates"
-)
+@app.route("/recruiter/candidates")
 def recruiter_candidates():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
+    recruiter_id = session["user_id"]
     conn = get_db()
 
     candidates = conn.execute(
         """
         SELECT
-
             u.id AS candidate_id,
-
             u.name,
-
             u.email,
-
             u.phone,
-
             u.education,
-
             u.skills,
-
             u.experience,
-
             u.resume_score,
-
             u.resume_skills,
-
             u.resume_analysis,
-
             u.resume_suggestions,
-
             (
                 SELECT a.id
-
                 FROM applications a
-
-                JOIN jobs j
-                ON a.job_id = j.id
-
+                JOIN jobs j ON a.job_id = j.id
                 WHERE a.candidate_id = u.id
-
                 AND j.recruiter_id = ?
-
                 ORDER BY a.applied_at DESC
-
                 LIMIT 1
-
             ) AS application_id,
-
             (
                 SELECT a.status
-
                 FROM applications a
-
-                JOIN jobs j
-                ON a.job_id = j.id
-
+                JOIN jobs j ON a.job_id = j.id
                 WHERE a.candidate_id = u.id
-
                 AND j.recruiter_id = ?
-
                 ORDER BY a.applied_at DESC
-
                 LIMIT 1
-
             ) AS application_status,
-
             (
-                SELECT a.status
-
-                FROM applications a
-
-                JOIN jobs j
-                ON a.job_id = j.id
-
-                WHERE a.candidate_id = u.id
-
-                AND j.recruiter_id = ?
-
-                ORDER BY a.applied_at DESC
-
+                SELECT rr.status
+                FROM recruiter_requests rr
+                WHERE rr.candidate_id = u.id
+                AND rr.recruiter_id = ?
+                ORDER BY rr.created_at DESC
                 LIMIT 1
-
-            ) AS status
-
+            ) AS latest_request_status
         FROM users u
-
         WHERE LOWER(u.role) = 'candidate'
-
         ORDER BY u.name ASC
         """,
-        (
-            session["user_id"],
-            session["user_id"],
-            session["user_id"]
-        )
+        (recruiter_id, recruiter_id, recruiter_id)
     ).fetchall()
 
     conn.close()
@@ -1652,17 +1090,10 @@ def recruiter_candidates():
 # RECRUITER - CANDIDATE PROFILE
 # =========================================================
 
-@app.route(
-    "/recruiter/candidate/<int:candidate_id>"
-)
-def recruiter_candidate_profile(
-    candidate_id
-):
-
+@app.route("/recruiter/candidate/<int:candidate_id>")
+def recruiter_candidate_profile(candidate_id):
     check = recruiter_required()
-
     if check:
-
         return check
 
     conn = get_db()
@@ -1670,154 +1101,89 @@ def recruiter_candidate_profile(
     candidate = conn.execute(
         """
         SELECT *
-
         FROM users
-
         WHERE id = ?
-
         AND LOWER(role) = 'candidate'
         """,
-        (
-            candidate_id,
-        )
+        (candidate_id,)
     ).fetchone()
 
     if not candidate:
-
         conn.close()
-
         return """
         <h2>Candidate not found.</h2>
-
-        <a href="/recruiter/candidates">
-            Back to Candidates
-        </a>
+        <a href="/recruiter/candidates">Back to Candidates</a>
         """
 
     applications = conn.execute(
         """
         SELECT
-
             a.id,
-
             a.status,
-
             a.applied_at,
-
             j.id AS job_id,
-
             j.title,
-
             j.company,
-
             j.location,
-
             j.skills,
-
             j.description
-
         FROM applications a
-
-        JOIN jobs j
-        ON a.job_id = j.id
-
+        JOIN jobs j ON a.job_id = j.id
         WHERE a.candidate_id = ?
-
         AND j.recruiter_id = ?
-
         ORDER BY a.applied_at DESC
         """,
-        (
-            candidate_id,
-            session["user_id"]
-        )
+        (candidate_id, session["user_id"])
     ).fetchall()
 
     interview_results = conn.execute(
         """
         SELECT *
-
         FROM interview_results
-
         WHERE candidate_id = ?
-
         ORDER BY created_at DESC
         """,
-        (
-            candidate_id,
-        )
+        (candidate_id,)
     ).fetchall()
 
-    jobs = conn.execute(
+    jobs_list = conn.execute(
         """
         SELECT *
-
         FROM jobs
-
         WHERE recruiter_id = ?
-
         ORDER BY created_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
 
     requests_list = conn.execute(
         """
         SELECT
-
             rr.*,
-
             j.title AS job_title
-
         FROM recruiter_requests rr
-
-        LEFT JOIN jobs j
-        ON rr.job_id = j.id
-
+        LEFT JOIN jobs j ON rr.job_id = j.id
         WHERE rr.recruiter_id = ?
-
         AND rr.candidate_id = ?
-
         ORDER BY rr.created_at DESC
         """,
-        (
-            session["user_id"],
-            candidate_id
-        )
+        (session["user_id"], candidate_id)
     ).fetchall()
 
     conn.close()
 
-    analysis = get_resume_analysis(
-        candidate_id
-    )
-
-    interview = (
-        interview_results[0]
-        if interview_results
-        else None
-    )
+    analysis = get_resume_analysis(candidate_id)
+    interview = interview_results[0] if interview_results else None
 
     return render_template(
         "recruiter_candidate_profile.html",
-
         candidate=candidate,
-
         applications=applications,
-
-        interview_results=
-        interview_results,
-
-        jobs=jobs,
-
+        interview_results=interview_results,
+        jobs=jobs_list,
         requests=requests_list,
-
         analysis=analysis,
-
         resume_analysis=analysis,
-
         interview=interview
     )
 
@@ -1826,37 +1192,18 @@ def recruiter_candidate_profile(
 # RECRUITER - VIEW CANDIDATE RESUME
 # =========================================================
 
-@app.route(
-    "/recruiter/candidate/<int:candidate_id>/resume"
-)
-def recruiter_candidate_resume(
-    candidate_id
-):
-
+@app.route("/recruiter/candidate/<int:candidate_id>/resume")
+def recruiter_candidate_resume(candidate_id):
     check = recruiter_required()
-
     if check:
-
         return check
 
-    filename, filepath = (
-        get_latest_resume_for_user(
-            candidate_id
-        )
-    )
+    filename, filepath = get_latest_resume_for_user(candidate_id)
 
-    if (
-        not filepath
-        or
-        not os.path.exists(filepath)
-    ):
-
+    if not filepath or not os.path.exists(filepath):
         return """
         <h2>Resume not found.</h2>
-
-        <a href="/recruiter/candidates">
-            Back to Candidates
-        </a>
+        <a href="/recruiter/candidates">Back to Candidates</a>
         """
 
     return send_file(
@@ -1870,52 +1217,27 @@ def recruiter_candidate_resume(
 # PROFILE
 # =========================================================
 
-@app.route(
-    "/profile",
-    methods=["GET", "POST"]
-)
+@app.route("/profile", methods=["GET", "POST"])
 def profile():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
+        return redirect(url_for("login"))
 
     conn = get_db()
 
     if request.method == "POST":
-
-        phone = request.form.get(
-            "phone",
-            ""
-        ).strip()
-
-        education = request.form.get(
-            "education",
-            ""
-        ).strip()
-
-        skills = request.form.get(
-            "skills",
-            ""
-        ).strip()
-
-        experience = request.form.get(
-            "experience",
-            ""
-        ).strip()
+        phone = request.form.get("phone", "").strip()
+        education = request.form.get("education", "").strip()
+        skills = request.form.get("skills", "").strip()
+        experience = request.form.get("experience", "").strip()
 
         conn.execute(
             """
             UPDATE users
-
             SET
                 phone = ?,
                 education = ?,
                 skills = ?,
                 experience = ?
-
             WHERE id = ?
             """,
             (
@@ -1926,867 +1248,460 @@ def profile():
                 session["user_id"]
             )
         )
-
         conn.commit()
 
     user = conn.execute(
-        """
-        SELECT *
-
-        FROM users
-
-        WHERE id = ?
-        """,
-        (
-            session["user_id"],
-        )
+        "SELECT * FROM users WHERE id = ?",
+        (session["user_id"],)
     ).fetchone()
-
     conn.close()
 
-    return render_template(
-        "profile.html",
-        user=user
-    )
+    return render_template("profile.html", user=user)
 
 
 # =========================================================
 # UPLOAD RESUME
 # =========================================================
 
-@app.route(
-    "/upload_resume",
-    methods=["GET", "POST"]
-)
+@app.route("/upload_resume", methods=["GET", "POST"])
 def upload_resume():
-
     if "user_id" not in session:
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    if request.method == "POST":
-
-        if "resume" not in request.files:
-
-            return """
-            <h2>No resume selected.</h2>
-            <a href="/upload_resume">
-                Try Again
-            </a>
-            """
-
-        file = request.files[
-            "resume"
-        ]
-
-        if not file.filename:
-
-            return """
-            <h2>Please select a resume.</h2>
-            <a href="/upload_resume">
-                Try Again
-            </a>
-            """
-
-        if not allowed_file(
-            file.filename
-        ):
-
-            return """
-            <h2>
-                Only PDF and DOCX files are allowed.
-            </h2>
-
-            <a href="/upload_resume">
-                Try Again
-            </a>
-            """
-
-        filename = (
-            str(session["user_id"])
-            + "_"
-            + secure_filename(
-                file.filename
-            )
-        )
-
-        filepath = os.path.join(
-            app.config[
-                "UPLOAD_FOLDER"
-            ],
-            filename
-        )
-
-        file.save(
-            filepath
-        )
-
-        resume_text = extract_resume_text(
-            filepath
-        )
-
-        if not resume_text:
-
-            return """
-            <h2>
-                Could not read the resume.
-            </h2>
-
-            <a href="/upload_resume">
-                Try Again
-            </a>
-            """
-
-        prompt = f"""
-You are an AI resume analyzer.
-
-Analyze this resume.
-
-Return exactly:
-
-SCORE:
-[number from 0 to 100]
-
-SKILLS:
-comma separated skills
-
-ANALYSIS:
-short professional analysis
-
-SUGGESTIONS:
-short improvement suggestions
-
-Resume:
-
-{resume_text[:16000]}
-"""
-
-        ai_result = ask_gemini(
-            prompt
-        )
-
-        score = 0
-
-        skills = ""
-
-        analysis = ""
-
-        suggestions = ""
-
-        section = None
-
-        analysis_lines = []
-
-        suggestion_lines = []
-
-
-        for raw_line in ai_result.splitlines():
-
-            line = raw_line.strip()
-
-            upper = line.upper()
-
-            if upper.startswith(
-                "SCORE:"
-            ):
-
-                try:
-
-                    score = int(
-                        float(
-                            line.split(
-                                ":",
-                                1
-                            )[1]
-                            .replace(
-                                "%",
-                                ""
-                            )
-                            .strip()
-                        )
-                    )
-
-                    score = max(
-                        0,
-                        min(
-                            100,
-                            score
-                        )
-                    )
-
-                except Exception:
-
-                    score = 0
-
-
-            elif upper.startswith(
-                "SKILLS:"
-            ):
-
-                section = "skills"
-
-                skills = line.split(
-                    ":",
-                    1
-                )[1].strip()
-
-
-            elif upper.startswith(
-                "ANALYSIS:"
-            ):
-
-                section = "analysis"
-
-                value = line.split(
-                    ":",
-                    1
-                )[1].strip()
-
-                if value:
-
-                    analysis_lines.append(
-                        value
-                    )
-
-
-            elif upper.startswith(
-                "SUGGESTIONS:"
-            ):
-
-                section = "suggestions"
-
-                value = line.split(
-                    ":",
-                    1
-                )[1].strip()
-
-                if value:
-
-                    suggestion_lines.append(
-                        value
-                    )
-
-
-            elif line:
-
-                if section == "analysis":
-
-                    analysis_lines.append(
-                        line
-                    )
-
-                elif section == "suggestions":
-
-                    suggestion_lines.append(
-                        line
-                    )
-
-
-        analysis = (
-            "\n".join(
-                analysis_lines
-            )
-            or
-            "Resume uploaded successfully."
-        )
-
-        suggestions = (
-            "\n".join(
-                suggestion_lines
-            )
-            or
-            "Keep your resume updated and tailored to the target role."
-        )
-
-
-        if not skills:
-
-            text_lower = resume_text.lower()
-
-            detected = [
-
-                skill
-
-                for skill
-                in SKILLS_LIST
-
-                if skill.lower()
-                in text_lower
-            ]
-
-            skills = ", ".join(
-                detected
-            )
-
-
-        conn = get_db()
-
-        conn.execute(
-            """
-            UPDATE users
-
-            SET
-                resume_score = ?,
-                resume_skills = ?,
-                resume_analysis = ?,
-                resume_suggestions = ?
-
-            WHERE id = ?
-            """,
-            (
-                score,
-                skills,
-                analysis,
-                suggestions,
-                session["user_id"]
-            )
-        )
-
-        conn.commit()
-
-        conn.close()
-
+    if request.method == "GET":
+        filename, filepath = get_latest_resume()
         return render_template(
-            "resume_uploaded.html",
-            filename=filename
+            "upload_resume.html",
+            filename=filename,
+            resume_uploaded=bool(filepath),
+            error=None
         )
 
-    return render_template(
-        "upload_resume.html"
+    if "resume" not in request.files:
+        return """
+        <h2>No resume selected.</h2>
+        <a href="/upload_resume">Try Again</a>
+        """
+
+    file = request.files["resume"]
+
+    if not file.filename:
+        return """
+        <h2>Please select a resume.</h2>
+        <a href="/upload_resume">Try Again</a>
+        """
+
+    if not allowed_file(file.filename):
+        return """
+        <h2>Only PDF and DOCX files are allowed.</h2>
+        <a href="/upload_resume">Try Again</a>
+        """
+
+    filename = secure_filename(file.filename)
+    filename = f"{session['user_id']}_{filename}"
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+    try:
+        file.save(filepath)
+    except Exception as error:
+        print("RESUME SAVE ERROR:", repr(error))
+        return """
+        <h2>Could not save the resume.</h2>
+        <a href="/upload_resume">Try Again</a>
+        """
+
+    # IMPORTANT:
+    # Do not call Gemini while uploading the file.
+    # Gemini requests can take time, so upload should finish quickly.
+    # AI interview can use the resume later, and resume analysis can be
+    # generated separately when the user opens the analysis page.
+    try:
+        resume_text = extract_resume_text(filepath)
+    except Exception as error:
+        print("RESUME EXTRACTION ERROR:", repr(error))
+        resume_text = ""
+
+    if not resume_text.strip():
+        return """
+        <h2>Resume uploaded, but its text could not be read.</h2>
+        <p>Please upload a text-based PDF or DOCX file.</p>
+        <a href="/upload_resume">Try Again</a>
+        """
+
+    # Fast local resume analysis for immediate display.
+    text_lower = resume_text.lower()
+
+    found_skills = list(dict.fromkeys([
+        skill
+        for skill in SKILLS_LIST
+        if skill.lower() in text_lower
+    ]))
+
+    resume_score = min(
+        100,
+        30 + len(found_skills) * 7
     )
+
+    suggestions = []
+
+    if len(found_skills) < 5:
+        suggestions.append(
+            "Add more relevant technical skills."
+        )
+
+    if "education" not in text_lower:
+        suggestions.append(
+            "Add your education details."
+        )
+
+    if "experience" not in text_lower:
+        suggestions.append(
+            "Add your work experience or internship details."
+        )
+
+    if "project" not in text_lower:
+        suggestions.append(
+            "Add academic or personal projects."
+        )
+
+    if not suggestions:
+        suggestions.append(
+            "Your resume contains good basic information. Keep it updated."
+        )
+
+    analysis = (
+        "Resume uploaded successfully. "
+        f"Detected {len(found_skills)} relevant skills."
+    )
+
+    conn = get_db()
+    conn.execute(
+        """
+        UPDATE users
+        SET
+            resume_score = ?,
+            resume_skills = ?,
+            resume_analysis = ?,
+            resume_suggestions = ?
+        WHERE id = ?
+        """,
+        (
+            resume_score,
+            ", ".join(found_skills),
+            analysis,
+            "\n".join(suggestions),
+            session["user_id"]
+        )
+    )
+    conn.commit()
+    conn.close()
+
+    # Fast redirect. No Gemini call is made here.
+    return render_template(
+        "resume_uploaded.html",
+        filename=filename
+    )
+
+
 # =========================================================
 # RESUME ANALYSIS
 # =========================================================
 
 @app.route("/resume_analysis")
 def resume_analysis():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
-
-    # -----------------------------------------------------
-    # GET LATEST RESUME
-    # -----------------------------------------------------
+        return redirect(url_for("login"))
 
     filename, filepath = get_latest_resume()
 
     if not filename or not filepath:
-
         return render_template(
             "resume_analysis.html",
-
             filename="No Resume",
-
             skills=[],
-
             missing_skills=[],
-
             score=0,
-
-            suggestions=[
-                "Please upload your resume first."
-            ],
-
+            suggestions=["Please upload your resume first."],
             resume_text="",
-
             resume_information={}
         )
-
-    # -----------------------------------------------------
-    # CHECK FILE
-    # -----------------------------------------------------
-
-    if not os.path.isfile(filepath):
-
-        return render_template(
-            "resume_analysis.html",
-
-            filename=filename,
-
-            skills=[],
-
-            missing_skills=[],
-
-            score=0,
-
-            suggestions=[
-                "Resume file was not found.",
-                "Please upload your resume again."
-            ],
-
-            resume_text="",
-
-            resume_information={}
-        )
-
-    # -----------------------------------------------------
-    # EXTRACT RESUME TEXT
-    # -----------------------------------------------------
 
     try:
+        resume_text = extract_resume_text(filepath)
 
-        resume_text = extract_resume_text(
-            filepath
+        if not resume_text.strip():
+            return render_template(
+                "resume_analysis.html",
+                filename=filename,
+                skills=[],
+                missing_skills=[],
+                score=0,
+                suggestions=[
+                    "Could not extract text from this resume.",
+                    "Please upload a text-based PDF or DOCX file."
+                ],
+                resume_text="",
+                resume_information={}
+            )
+
+        text_lower = resume_text.lower()
+
+        found_skills = [
+            skill
+            for skill in SKILLS_LIST
+            if skill.lower() in text_lower
+        ]
+
+        found_skills = list(dict.fromkeys(found_skills))
+
+        missing_skills = [
+            skill
+            for skill in SKILLS_LIST
+            if skill not in found_skills
+        ]
+
+        score = min(100, 30 + len(found_skills) * 7)
+
+        lines = [
+            line.strip()
+            for line in resume_text.splitlines()
+            if line.strip()
+        ]
+
+        # Email
+        email_match = re.search(
+            r"[\w.\-+]+@[\w.\-]+\.\w+",
+            resume_text
+        )
+        email = (
+            email_match.group(0)
+            if email_match
+            else "Not detected"
+        )
+
+        # Phone
+        phone_match = re.search(
+            r"(\+91[\s-]?)?[6-9]\d{9}",
+            resume_text
+        )
+        phone = (
+            phone_match.group(0)
+            if phone_match
+            else "Not detected"
+        )
+
+        # Name
+        detected_name = "Not detected"
+        if lines:
+            first_line = lines[0]
+            if (
+                len(first_line) <= 60
+                and "@" not in first_line
+                and not any(ch.isdigit() for ch in first_line)
+            ):
+                detected_name = first_line
+
+        # Education
+        education_keywords = [
+            "bachelor",
+            "b.tech",
+            "b.e",
+            "bca",
+            "b.sc",
+            "mca",
+            "m.tech",
+            "m.sc",
+            "master",
+            "degree",
+            "engineering",
+            "computer science",
+            "information technology",
+            "university",
+            "college",
+            "education"
+        ]
+        education_lines = [
+            line
+            for line in lines
+            if any(
+                keyword in line.lower()
+                for keyword in education_keywords
+            )
+        ]
+        education = (
+            " | ".join(education_lines[:5])
+            if education_lines
+            else "Not detected"
+        )
+
+        # Experience
+        experience_keywords = [
+            "experience",
+            "intern",
+            "internship",
+            "developer",
+            "software engineer",
+            "worked at",
+            "employment"
+        ]
+        experience_lines = [
+            line
+            for line in lines
+            if any(
+                keyword in line.lower()
+                for keyword in experience_keywords
+            )
+        ]
+        experience = (
+            " | ".join(experience_lines[:5])
+            if experience_lines
+            else "Not detected"
+        )
+
+        # Projects
+        project_lines = [
+            line
+            for line in lines
+            if (
+                "project" in line.lower()
+                or "developed" in line.lower()
+                or "built" in line.lower()
+            )
+        ]
+        projects = (
+            " | ".join(project_lines[:5])
+            if project_lines
+            else "Not detected"
+        )
+
+        resume_information = {
+            "name": detected_name,
+            "email": email,
+            "phone": phone,
+            "education": education,
+            "experience": experience,
+            "projects": projects,
+            "skills_count": len(found_skills),
+            "resume_filename": filename
+        }
+
+        suggestions = []
+
+        if len(found_skills) < 5:
+            suggestions.append("Add more relevant technical skills.")
+
+        if email == "Not detected":
+            suggestions.append("Add a professional email address.")
+
+        if phone == "Not detected":
+            suggestions.append("Add your contact number.")
+
+        if education == "Not detected":
+            suggestions.append("Add your education details.")
+
+        if experience == "Not detected":
+            suggestions.append(
+                "Add your internship or work experience."
+            )
+
+        if projects == "Not detected":
+            suggestions.append(
+                "Add your academic or personal projects."
+            )
+
+        if not suggestions:
+            suggestions.append(
+                "Your resume contains good basic information. Keep it updated."
+            )
+
+        analysis_text = (
+            f"Detected {len(found_skills)} relevant skills in {filename}."
+        )
+
+        save_resume_analysis(
+            session["user_id"],
+            filename,
+            score,
+            found_skills,
+            missing_skills,
+            suggestions,
+            analysis=analysis_text
+        )
+
+        analysis = get_resume_analysis(session["user_id"])
+
+        return render_template(
+            "resume_analysis.html",
+            filename=filename,
+            skills=found_skills,
+            missing_skills=missing_skills,
+            score=score,
+            suggestions=suggestions,
+            resume_text=resume_text,
+            resume_information=resume_information,
+            analysis=analysis
         )
 
     except Exception as error:
-
-        print(
-            "Resume extraction error:",
-            repr(error)
-        )
-
+        print("Resume analysis error:", repr(error))
         return render_template(
             "resume_analysis.html",
-
             filename=filename,
-
             skills=[],
-
             missing_skills=[],
-
             score=0,
-
-            suggestions=[
-                "Could not read your resume.",
-                "Please upload a text-based PDF or DOCX file."
-            ],
-
+            suggestions=["Unable to analyze resume."],
             resume_text="",
-
             resume_information={}
         )
 
-    # -----------------------------------------------------
-    # EMPTY RESUME CHECK
-    # -----------------------------------------------------
-
-    if not resume_text or not resume_text.strip():
-
-        return render_template(
-            "resume_analysis.html",
-
-            filename=filename,
-
-            skills=[],
-
-            missing_skills=[],
-
-            score=0,
-
-            suggestions=[
-                "Could not extract text from this resume.",
-                "Please upload a text-based PDF or DOCX file.",
-                "Scanned/image-only PDFs may not be readable."
-            ],
-
-            resume_text="",
-
-            resume_information={}
-        )
-
-    # -----------------------------------------------------
-    # NORMALIZE TEXT
-    # -----------------------------------------------------
-
-    text_lower = resume_text.lower()
-
-    # -----------------------------------------------------
-    # DETECT SKILLS
-    # -----------------------------------------------------
-
-    found_skills = []
-
-    for skill in SKILLS_LIST:
-
-        if skill.lower() in text_lower:
-
-            found_skills.append(
-                skill
-            )
-
-    # Remove duplicates
-    found_skills = list(
-        dict.fromkeys(found_skills)
-    )
-
-    # -----------------------------------------------------
-    # MISSING SKILLS
-    # -----------------------------------------------------
-
-    missing_skills = []
-
-    for skill in SKILLS_LIST:
-
-        if skill not in found_skills:
-
-            missing_skills.append(
-                skill
-            )
-
-    # -----------------------------------------------------
-    # RESUME SCORE
-    # -----------------------------------------------------
-
-    score = 30 + (
-        len(found_skills) * 7
-    )
-
-    if score > 100:
-
-        score = 100
-
-    # -----------------------------------------------------
-    # RESUME INFORMATION
-    # -----------------------------------------------------
-
-    import re
-
-    # Email
-    email_match = re.search(
-        r'[\w\.-]+@[\w\.-]+\.\w+',
-        resume_text
-    )
-
-    email = (
-        email_match.group(0)
-        if email_match
-        else "Not detected"
-    )
-
-    # Phone
-    phone_match = re.search(
-        r'(\+91[\s-]?)?[6-9]\d{9}',
-        resume_text
-    )
-
-    phone = (
-        phone_match.group(0)
-        if phone_match
-        else "Not detected"
-    )
-
-    # -----------------------------------------------------
-    # NAME DETECTION
-    # -----------------------------------------------------
-
-    lines = [
-        line.strip()
-        for line in resume_text.splitlines()
-        if line.strip()
-    ]
-
-    detected_name = "Not detected"
-
-    if lines:
-
-        first_line = lines[0]
-
-        if (
-            len(first_line) <= 60
-            and "@" not in first_line
-            and not any(
-                character.isdigit()
-                for character in first_line
-            )
-        ):
-
-            detected_name = first_line
-
-    # -----------------------------------------------------
-    # EDUCATION
-    # -----------------------------------------------------
-
-    education = "Not detected"
-
-    education_keywords = [
-        "bachelor",
-        "b.tech",
-        "b.e",
-        "bca",
-        "b.sc",
-        "mca",
-        "m.tech",
-        "m.sc",
-        "master",
-        "degree",
-        "engineering",
-        "computer science",
-        "information technology",
-        "university",
-        "college",
-        "education"
-    ]
-
-    education_lines = []
-
-    for line in lines:
-
-        lower_line = line.lower()
-
-        if any(
-            keyword in lower_line
-            for keyword in education_keywords
-        ):
-
-            education_lines.append(
-                line
-            )
-
-    if education_lines:
-
-        education = " | ".join(
-            education_lines[:5]
-        )
-
-    # -----------------------------------------------------
-    # EXPERIENCE
-    # -----------------------------------------------------
-
-    experience = "Not detected"
-
-    experience_keywords = [
-        "experience",
-        "intern",
-        "internship",
-        "developer",
-        "software engineer",
-        "worked at",
-        "employment"
-    ]
-
-    experience_lines = []
-
-    for line in lines:
-
-        lower_line = line.lower()
-
-        if any(
-            keyword in lower_line
-            for keyword in experience_keywords
-        ):
-
-            experience_lines.append(
-                line
-            )
-
-    if experience_lines:
-
-        experience = " | ".join(
-            experience_lines[:5]
-        )
-
-    # -----------------------------------------------------
-    # PROJECTS
-    # -----------------------------------------------------
-
-    projects = "Not detected"
-
-    project_lines = []
-
-    for line in lines:
-
-        lower_line = line.lower()
-
-        if (
-            "project" in lower_line
-            or
-            "developed" in lower_line
-            or
-            "built" in lower_line
-        ):
-
-            project_lines.append(
-                line
-            )
-
-    if project_lines:
-
-        projects = " | ".join(
-            project_lines[:5]
-        )
-
-    # -----------------------------------------------------
-    # RESUME INFORMATION DICTIONARY
-    # -----------------------------------------------------
-
-    resume_information = {
-
-        "name": detected_name,
-
-        "email": email,
-
-        "phone": phone,
-
-        "education": education,
-
-        "experience": experience,
-
-        "projects": projects,
-
-        "skills_count": len(
-            found_skills
-        ),
-
-        "resume_filename": filename
-    }
-
-    # -----------------------------------------------------
-    # SUGGESTIONS
-    # -----------------------------------------------------
-
-    suggestions = []
-
-    if len(found_skills) < 5:
-
-        suggestions.append(
-            "Add more relevant technical skills."
-        )
-
-    if email == "Not detected":
-
-        suggestions.append(
-            "Add a professional email address."
-        )
-
-    if phone == "Not detected":
-
-        suggestions.append(
-            "Add your contact number."
-        )
-
-    if education == "Not detected":
-
-        suggestions.append(
-            "Add your education details."
-        )
-
-    if experience == "Not detected":
-
-        suggestions.append(
-            "Add your internship or work experience."
-        )
-
-    if projects == "Not detected":
-
-        suggestions.append(
-            "Add your academic or personal projects."
-        )
-
-    if not suggestions:
-
-        suggestions.append(
-            "Your resume contains good basic information. Keep it updated."
-        )
-
-    # -----------------------------------------------------
-    # SAVE ANALYSIS
-    # -----------------------------------------------------
-
-    save_resume_analysis(
-        session["user_id"],
-        filename,
-        score,
-        found_skills,
-        missing_skills,
-        suggestions
-    )
-
-    # -----------------------------------------------------
-    # RENDER PAGE
-    # -----------------------------------------------------
-
-    return render_template(
-
-        "resume_analysis.html",
-
-        filename=filename,
-
-        skills=found_skills,
-
-        missing_skills=missing_skills,
-
-        score=score,
-
-        suggestions=suggestions,
-
-        resume_text=resume_text,
-
-        resume_information=
-        resume_information
-    )
 
 # =========================================================
 # SKILL ANALYSIS
 # =========================================================
 
-@app.route(
-    "/skill_analysis"
-)
+@app.route("/skill_analysis")
 def skill_analysis():
-
     if "user_id" not in session:
+        return redirect(url_for("login"))
 
-        return redirect(
-            url_for("login")
-        )
-
-    filename, filepath = (
-        get_latest_resume()
-    )
+    filename, filepath = get_latest_resume()
 
     if not filepath:
+        return render_template(
+            "skill_analysis.html",
+            error="Please upload your resume first."
+        )
+
+    try:
+        resume_text = extract_resume_text(filepath)
+        text_lower = resume_text.lower()
+
+        found_skills = [
+            skill
+            for skill in SKILLS_LIST
+            if skill.lower() in text_lower
+        ]
+
+        missing_skills = [
+            skill
+            for skill in SKILLS_LIST
+            if skill not in found_skills
+        ]
 
         return render_template(
             "skill_analysis.html",
-            error=(
-                "Please upload your "
-                "resume first."
-            )
+            skills=found_skills,
+            missing_skills=missing_skills,
+            filename=filename
         )
 
-    resume_text = extract_resume_text(
-        filepath
-    )
-
-    text_lower = resume_text.lower()
-
-    found_skills = [
-
-        skill
-
-        for skill
-        in SKILLS_LIST
-
-        if skill.lower()
-        in text_lower
-    ]
-
-    missing_skills = [
-
-        skill
-
-        for skill
-        in SKILLS_LIST
-
-        if skill not in found_skills
-    ]
-
-    return render_template(
-        "skill_analysis.html",
-
-        skills=found_skills,
-
-        missing_skills=
-        missing_skills,
-
-        filename=filename
-    )
+    except Exception as error:
+        print("Skill analysis error:", repr(error))
+        return render_template(
+            "skill_analysis.html",
+            error="Unable to analyze skills."
+        )
 
 
 # =========================================================
@@ -2795,204 +1710,118 @@ def skill_analysis():
 
 @app.route("/jobs")
 def jobs():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
+        return redirect(url_for("login"))
 
     conn = get_db()
-
     jobs_list = conn.execute(
         """
         SELECT
-
             j.*,
-
             u.name AS recruiter_name
-
         FROM jobs j
-
-        JOIN users u
-        ON j.recruiter_id = u.id
-
+        JOIN users u ON j.recruiter_id = u.id
         ORDER BY j.created_at DESC
         """
     ).fetchall()
-
     conn.close()
 
-    return render_template(
-        "jobs.html",
-        jobs=jobs_list
-    )
+    return render_template("jobs.html", jobs=jobs_list)
 
 
 # =========================================================
 # APPLY FOR JOB
 # =========================================================
 
-@app.route(
-    "/apply/<int:job_id>",
-    methods=["POST"]
-)
+@app.route("/apply/<int:job_id>", methods=["POST"])
 def apply_job(job_id):
-
     check = candidate_required()
-
     if check:
-
         return check
 
     conn = get_db()
 
     job = conn.execute(
-        """
-        SELECT *
-
-        FROM jobs
-
-        WHERE id = ?
-        """,
-        (
-            job_id,
-        )
+        "SELECT * FROM jobs WHERE id = ?",
+        (job_id,)
     ).fetchone()
 
     if not job:
-
         conn.close()
-
-        return redirect(
-            url_for("jobs")
-        )
+        return redirect(url_for("jobs"))
 
     existing = conn.execute(
         """
         SELECT id
-
         FROM applications
-
         WHERE job_id = ?
-
         AND candidate_id = ?
         """,
-        (
-            job_id,
-            session["user_id"]
-        )
+        (job_id, session["user_id"])
     ).fetchone()
 
-    if not existing:
+    if existing:
+        conn.close()
+        return redirect(url_for("my_applications"))
 
-        cursor = conn.execute(
-            """
-            INSERT INTO applications
-            (
-                job_id,
-                candidate_id,
-                status
-            )
+    cursor = conn.execute(
+        """
+        INSERT INTO applications
+        (job_id, candidate_id, status)
+        VALUES (?, ?, 'Applied')
+        """,
+        (job_id, session["user_id"])
+    )
 
-            VALUES (?, ?, ?)
-            """,
-            (
-                job_id,
-                session["user_id"],
-                "Applied"
-            )
-        )
+    application_id = cursor.lastrowid
 
-        application_id = (
-            cursor.lastrowid
-        )
-
-        conn.execute(
-            """
-            INSERT INTO notifications
-            (
-                candidate_id,
-                application_id,
-                message,
-                is_read
-            )
-
-            VALUES (?, ?, ?, 0)
-            """,
-            (
-                session["user_id"],
-                application_id,
-                (
-                    "Your application for "
-                    f"{job['title']} "
-                    "has been submitted."
-                )
-            )
-        )
-
-        conn.commit()
-
-    conn.close()
-
-    return redirect(
-        url_for(
-            "my_applications"
+    conn.execute(
+        """
+        INSERT INTO notifications
+        (candidate_id, application_id, message, is_read)
+        VALUES (?, ?, ?, 0)
+        """,
+        (
+            session["user_id"],
+            application_id,
+            f"Your application for {job['title']} has been submitted."
         )
     )
+
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("my_applications"))
 
 
 # =========================================================
 # MY APPLICATIONS
 # =========================================================
 
-@app.route(
-    "/my_applications"
-)
+@app.route("/my_applications")
 def my_applications():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
+        return redirect(url_for("login"))
 
     conn = get_db()
-
     applications = conn.execute(
         """
         SELECT
-
             a.id,
-
             a.status,
-
             a.applied_at,
-
             j.title,
-
             j.company,
-
             j.location,
-
             j.skills,
-
             j.description
-
         FROM applications a
-
-        JOIN jobs j
-        ON a.job_id = j.id
-
+        JOIN jobs j ON a.job_id = j.id
         WHERE a.candidate_id = ?
-
         ORDER BY a.applied_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
-
     conn.close()
 
     return render_template(
@@ -3005,55 +1834,38 @@ def my_applications():
 # NOTIFICATIONS
 # =========================================================
 
-@app.route(
-    "/notifications"
-)
+@app.route("/notifications")
 def notifications():
-
     if "user_id" not in session:
-
-        return redirect(
-            url_for("login")
-        )
+        return redirect(url_for("login"))
 
     conn = get_db()
 
     notification_list = conn.execute(
         """
         SELECT *
-
         FROM notifications
-
         WHERE candidate_id = ?
-
         ORDER BY created_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
 
     conn.execute(
         """
         UPDATE notifications
-
         SET is_read = 1
-
         WHERE candidate_id = ?
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     )
 
     conn.commit()
-
     conn.close()
 
     return render_template(
         "notifications.html",
-        notifications=
-        notification_list
+        notifications=notification_list
     )
 
 
@@ -3065,19 +1877,12 @@ def notifications():
     "/recruiter/application/<int:application_id>/<status>",
     methods=["POST"]
 )
-def update_application_status(
-    application_id,
-    status
-):
-
+def update_application_status(application_id, status):
     check = recruiter_required()
-
     if check:
-
         return check
 
     status = status.capitalize()
-
     allowed_statuses = {
         "Shortlisted",
         "Rejected",
@@ -3085,129 +1890,69 @@ def update_application_status(
     }
 
     if status not in allowed_statuses:
-
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
+        return redirect(url_for("recruiter_candidates"))
 
     conn = get_db()
 
     application = conn.execute(
         """
         SELECT
-
             a.*,
-
             j.title,
-
             j.recruiter_id
-
         FROM applications a
-
-        JOIN jobs j
-        ON a.job_id = j.id
-
+        JOIN jobs j ON a.job_id = j.id
         WHERE a.id = ?
         """,
-        (
-            application_id,
-        )
+        (application_id,)
     ).fetchone()
 
     if not application:
-
         conn.close()
+        return redirect(url_for("recruiter_candidates"))
 
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
-
-    if (
-        application["recruiter_id"]
-        != session["user_id"]
-    ):
-
+    if application["recruiter_id"] != session["user_id"]:
         conn.close()
-
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
+        return redirect(url_for("recruiter_candidates"))
 
     conn.execute(
-        """
-        UPDATE applications
-
-        SET status = ?
-
-        WHERE id = ?
-        """,
-        (
-            status,
-            application_id
-        )
+        "UPDATE applications SET status = ? WHERE id = ?",
+        (status, application_id)
     )
 
     conn.execute(
         """
         INSERT INTO notifications
-        (
-            candidate_id,
-            application_id,
-            message,
-            is_read
-        )
-
+        (candidate_id, application_id, message, is_read)
         VALUES (?, ?, ?, 0)
         """,
         (
-            application[
-                "candidate_id"
-            ],
-
+            application["candidate_id"],
             application_id,
-
             (
-                "Your application for "
-                f"{application['title']} "
-                "has been updated to "
-                f"{status}."
+                f"Your application for {application['title']} "
+                f"has been updated to {status}."
             )
         )
     )
 
     conn.commit()
-
     conn.close()
 
-    return redirect(
-        url_for(
-            "recruiter_candidates"
-        )
-    )
+    return redirect(url_for("recruiter_candidates"))
 
 
 # =========================================================
-# RECRUITER - SEND REQUEST
+# RECRUITER - SEND GENERIC REQUEST
 # =========================================================
 
 @app.route(
     "/recruiter/candidate/<int:candidate_id>/request",
     methods=["POST"]
 )
-def send_candidate_request(
-    candidate_id
-):
-
+def send_candidate_request(candidate_id):
     check = recruiter_required()
-
     if check:
-
         return check
 
     request_type = request.form.get(
@@ -3215,105 +1960,59 @@ def send_candidate_request(
         "job"
     ).strip().lower()
 
-    job_id = request.form.get(
-        "job_id",
-        ""
-    ).strip() or None
-
-    message = request.form.get(
-        "message",
-        ""
-    ).strip()
-
-
-    if request_type not in {
-        "job",
-        "interview"
-    }:
-
+    if request_type not in {"job", "interview"}:
         request_type = "job"
 
+    raw_job_id = request.form.get("job_id", "").strip()
+    job_id = raw_job_id or None
+    message = request.form.get("message", "").strip()
 
     conn = get_db()
 
     candidate = conn.execute(
         """
         SELECT id
-
         FROM users
-
         WHERE id = ?
-
         AND LOWER(role) = 'candidate'
         """,
-        (
-            candidate_id,
-        )
+        (candidate_id,)
     ).fetchone()
 
     if not candidate:
-
         conn.close()
-
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
-
+        return redirect(url_for("recruiter_candidates"))
 
     job = None
 
     if job_id:
-
         job = conn.execute(
             """
             SELECT *
-
             FROM jobs
-
             WHERE id = ?
-
             AND recruiter_id = ?
             """,
-            (
-                job_id,
-                session["user_id"]
-            )
+            (job_id, session["user_id"])
         ).fetchone()
 
-
-    if (
-        request_type == "job"
-        and not job
-    ):
-
+    if request_type == "job" and not job:
         conn.close()
-
         return redirect(
             url_for(
                 "recruiter_candidate_profile",
-                candidate_id=
-                candidate_id
+                candidate_id=candidate_id
             )
         )
-
 
     existing = conn.execute(
         """
         SELECT id
-
         FROM recruiter_requests
-
         WHERE recruiter_id = ?
-
         AND candidate_id = ?
-
         AND request_type = ?
-
-        AND COALESCE(job_id, 0)
-            = COALESCE(?, 0)
-
+        AND COALESCE(job_id, 0) = COALESCE(?, 0)
         AND status = 'Pending'
         """,
         (
@@ -3324,9 +2023,7 @@ def send_candidate_request(
         )
     ).fetchone()
 
-
     if not existing:
-
         conn.execute(
             """
             INSERT INTO recruiter_requests
@@ -3338,7 +2035,6 @@ def send_candidate_request(
                 message,
                 status
             )
-
             VALUES (?, ?, ?, ?, ?, 'Pending')
             """,
             (
@@ -3350,51 +2046,25 @@ def send_candidate_request(
             )
         )
 
-
-        if job:
-
-            job_title = job[
-                "title"
-            ]
-
-        else:
-
-            job_title = (
-                "the selected position"
-            )
-
-
-        request_label = (
-            "job"
-            if request_type == "job"
-            else "interview"
-        )
-
+        job_title = job["title"] if job else "the selected position"
+        request_label = "job" if request_type == "job" else "interview"
 
         conn.execute(
             """
             INSERT INTO notifications
-            (
-                candidate_id,
-                message,
-                is_read
-            )
-
-            VALUES (?, ?, 0)
+            (candidate_id, application_id, message, is_read)
+            VALUES (?, ?, ?, 0)
             """,
             (
                 candidate_id,
-
+                None,
                 (
-                    "Recruiter sent you a "
-                    f"{request_label} request "
+                    f"Recruiter sent you a {request_label} request "
                     f"for {job_title}."
                 )
             )
         )
-
         conn.commit()
-
 
     conn.close()
 
@@ -3407,95 +2077,55 @@ def send_candidate_request(
 
 
 # =========================================================
-# OLD JOB REQUEST ROUTE
-# Compatibility
+# OLD COMPATIBILITY - JOB REQUEST
 # =========================================================
 
-@app.route(
-    "/recruiter/request/job",
-    methods=["POST"]
-)
+@app.route("/recruiter/request/job", methods=["POST"])
 def recruiter_job_request():
-
-    check = recruiter_required()
-
-    if check:
-
-        return check
-
-    candidate_id = request.form.get(
-        "candidate_id"
-    )
-
-    job_id = request.form.get(
-        "job_id"
-    )
+    candidate_id = request.form.get("candidate_id", "").strip()
+    job_id = request.form.get("job_id", "").strip()
 
     if not candidate_id or not job_id:
+        return redirect(url_for("recruiter_candidates"))
 
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
+    check = recruiter_required()
+    if check:
+        return check
 
     conn = get_db()
 
     job = conn.execute(
         """
         SELECT *
-
         FROM jobs
-
         WHERE id = ?
-
         AND recruiter_id = ?
         """,
-        (
-            job_id,
-            session["user_id"]
-        )
+        (job_id, session["user_id"])
     ).fetchone()
 
     candidate = conn.execute(
         """
         SELECT id
-
         FROM users
-
         WHERE id = ?
-
         AND LOWER(role) = 'candidate'
         """,
-        (
-            candidate_id,
-        )
+        (candidate_id,)
     ).fetchone()
 
     if not job or not candidate:
-
         conn.close()
-
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
+        return redirect(url_for("recruiter_candidates"))
 
     existing = conn.execute(
         """
         SELECT id
-
         FROM recruiter_requests
-
         WHERE recruiter_id = ?
-
         AND candidate_id = ?
-
         AND job_id = ?
-
         AND request_type = 'job'
-
         AND status = 'Pending'
         """,
         (
@@ -3506,7 +2136,6 @@ def recruiter_job_request():
     ).fetchone()
 
     if not existing:
-
         conn.execute(
             """
             INSERT INTO recruiter_requests
@@ -3518,42 +2147,28 @@ def recruiter_job_request():
                 message,
                 status
             )
-
             VALUES (?, ?, ?, 'job', ?, 'Pending')
             """,
             (
                 session["user_id"],
                 candidate_id,
                 job_id,
-                request.form.get(
-                    "message",
-                    ""
-                ).strip()
+                request.form.get("message", "").strip()
             )
         )
 
         conn.execute(
             """
             INSERT INTO notifications
-            (
-                candidate_id,
-                message,
-                is_read
-            )
-
-            VALUES (?, ?, 0)
+            (candidate_id, application_id, message, is_read)
+            VALUES (?, ?, ?, 0)
             """,
             (
                 candidate_id,
-
-                (
-                    "Recruiter sent you a "
-                    f"job request for "
-                    f"{job['title']}."
-                )
+                None,
+                f"Recruiter sent you a job request for {job['title']}."
             )
         )
-
         conn.commit()
 
     conn.close()
@@ -3567,78 +2182,60 @@ def recruiter_job_request():
 
 
 # =========================================================
-# OLD INTERVIEW REQUEST ROUTE
-# Compatibility
+# OLD COMPATIBILITY - INTERVIEW REQUEST
 # =========================================================
 
-@app.route(
-    "/recruiter/request/interview",
-    methods=["POST"]
-)
+@app.route("/recruiter/request/interview", methods=["POST"])
 def recruiter_interview_request():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
-    candidate_id = request.form.get(
-        "candidate_id"
-    )
-
-    job_id = request.form.get(
-        "job_id"
-    ) or None
+    candidate_id = request.form.get("candidate_id", "").strip()
+    job_id = request.form.get("job_id", "").strip() or None
+    message = request.form.get("message", "").strip()
 
     if not candidate_id:
-
-        return redirect(
-            url_for(
-                "recruiter_candidates"
-            )
-        )
+        return redirect(url_for("recruiter_candidates"))
 
     conn = get_db()
 
+    candidate = conn.execute(
+        """
+        SELECT id
+        FROM users
+        WHERE id = ?
+        AND LOWER(role) = 'candidate'
+        """,
+        (candidate_id,)
+    ).fetchone()
+
+    if not candidate:
+        conn.close()
+        return redirect(url_for("recruiter_candidates"))
+
+    job = None
     if job_id:
-
-        valid_job = conn.execute(
+        job = conn.execute(
             """
-            SELECT id
-
+            SELECT *
             FROM jobs
-
             WHERE id = ?
-
             AND recruiter_id = ?
             """,
-            (
-                job_id,
-                session["user_id"]
-            )
+            (job_id, session["user_id"])
         ).fetchone()
-
-        if not valid_job:
-
+        if not job:
             job_id = None
-
 
     existing = conn.execute(
         """
         SELECT id
-
         FROM recruiter_requests
-
         WHERE recruiter_id = ?
-
         AND candidate_id = ?
-
         AND request_type = 'interview'
-
-        AND COALESCE(job_id, 0)
-            = COALESCE(?, 0)
-
+        AND COALESCE(job_id, 0) = COALESCE(?, 0)
         AND status = 'Pending'
         """,
         (
@@ -3648,9 +2245,7 @@ def recruiter_interview_request():
         )
     ).fetchone()
 
-
     if not existing:
-
         conn.execute(
             """
             INSERT INTO recruiter_requests
@@ -3662,42 +2257,35 @@ def recruiter_interview_request():
                 message,
                 status
             )
-
             VALUES (?, ?, ?, 'interview', ?, 'Pending')
             """,
             (
                 session["user_id"],
                 candidate_id,
                 job_id,
-                request.form.get(
-                    "message",
-                    ""
-                ).strip()
+                message
             )
+        )
+
+        job_text = (
+            f" for {job['title']}"
+            if job
+            else ""
         )
 
         conn.execute(
             """
             INSERT INTO notifications
-            (
-                candidate_id,
-                message,
-                is_read
-            )
-
-            VALUES (?, ?, 0)
+            (candidate_id, application_id, message, is_read)
+            VALUES (?, ?, ?, 0)
             """,
             (
                 candidate_id,
-                (
-                    "Recruiter sent you an "
-                    "interview request."
-                )
+                None,
+                f"Recruiter sent you an interview request{job_text}."
             )
         )
-
         conn.commit()
-
 
     conn.close()
 
@@ -3713,55 +2301,31 @@ def recruiter_interview_request():
 # CANDIDATE REQUESTS
 # =========================================================
 
-@app.route(
-    "/requests"
-)
-@app.route(
-    "/candidate/requests"
-)
+@app.route("/requests")
+@app.route("/candidate/requests")
 def candidate_requests():
-
     check = candidate_required()
-
     if check:
-
         return check
 
     conn = get_db()
-
     requests_list = conn.execute(
         """
         SELECT
-
             rr.*,
-
             j.title AS job_title,
-
             j.company,
-
             j.location,
-
             u.name AS recruiter_name,
-
             u.email AS recruiter_email
-
         FROM recruiter_requests rr
-
-        JOIN users u
-        ON rr.recruiter_id = u.id
-
-        LEFT JOIN jobs j
-        ON rr.job_id = j.id
-
+        JOIN users u ON rr.recruiter_id = u.id
+        LEFT JOIN jobs j ON rr.job_id = j.id
         WHERE rr.candidate_id = ?
-
         ORDER BY rr.created_at DESC
         """,
-        (
-            session["user_id"],
-        )
+        (session["user_id"],)
     ).fetchall()
-
     conn.close()
 
     return render_template(
@@ -3771,107 +2335,66 @@ def candidate_requests():
 
 
 # =========================================================
-# RESPOND TO REQUEST
+# CANDIDATE RESPOND TO REQUEST
 # =========================================================
 
 @app.route(
     "/requests/<int:request_id>/<action>",
     methods=["POST"]
 )
-def respond_to_request(
-    request_id,
-    action
-):
-
+def respond_to_request(request_id, action):
     check = candidate_required()
-
     if check:
-
         return check
 
-    if action not in {
-        "accept",
-        "decline"
-    }:
-
-        return redirect(
-            url_for(
-                "candidate_requests"
-            )
-        )
+    if action not in {"accept", "decline"}:
+        return redirect(url_for("candidate_requests"))
 
     conn = get_db()
 
     req = conn.execute(
         """
         SELECT *
-
         FROM recruiter_requests
-
         WHERE id = ?
-
         AND candidate_id = ?
         """,
-        (
-            request_id,
-            session["user_id"]
-        )
+        (request_id, session["user_id"])
     ).fetchone()
 
     if not req:
-
         conn.close()
+        return redirect(url_for("candidate_requests"))
 
-        return redirect(
-            url_for(
-                "candidate_requests"
-            )
-        )
+    # Prevent changing an already processed request.
+    if req["status"] != "Pending":
+        conn.close()
+        return redirect(url_for("candidate_requests"))
 
-
-    if action == "accept":
-
-        new_status = "Accepted"
-
-    else:
-
-        new_status = "Declined"
-
+    new_status = "Accepted" if action == "accept" else "Declined"
 
     conn.execute(
         """
         UPDATE recruiter_requests
-
         SET status = ?
-
         WHERE id = ?
         """,
-        (
-            new_status,
-            request_id
-        )
+        (new_status, request_id)
     )
-
 
     # -----------------------------------------------------
     # ACCEPT JOB REQUEST
     # -----------------------------------------------------
-
     if (
         action == "accept"
-        and req["request_type"]
-        == "job"
+        and req["request_type"] == "job"
         and req["job_id"]
     ):
-
         existing = conn.execute(
             """
             SELECT id
-
             FROM applications
-
             WHERE job_id = ?
-
             AND candidate_id = ?
             """,
             (
@@ -3880,18 +2403,11 @@ def respond_to_request(
             )
         ).fetchone()
 
-
         if not existing:
-
             cursor = conn.execute(
                 """
                 INSERT INTO applications
-                (
-                    job_id,
-                    candidate_id,
-                    status
-                )
-
+                (job_id, candidate_id, status)
                 VALUES (?, ?, 'Applied')
                 """,
                 (
@@ -3900,350 +2416,355 @@ def respond_to_request(
                 )
             )
 
-            application_id = (
-                cursor.lastrowid
-            )
+            application_id = cursor.lastrowid
 
             conn.execute(
                 """
                 INSERT INTO notifications
-                (
-                    candidate_id,
-                    application_id,
-                    message,
-                    is_read
-                )
-
+                (candidate_id, application_id, message, is_read)
                 VALUES (?, ?, ?, 0)
                 """,
                 (
                     session["user_id"],
                     application_id,
-                    (
-                        "You accepted the "
-                        "recruiter job request."
-                    )
+                    "You accepted the recruiter job request."
                 )
             )
 
-
-    conn.commit()
-
-    conn.close()
-
-
     # -----------------------------------------------------
-    # ACCEPT INTERVIEW REQUEST
+    # NOTIFY CANDIDATE OF THEIR RESPONSE
     # -----------------------------------------------------
-
-    if (
-        action == "accept"
-        and req["request_type"]
-        == "interview"
-    ):
-
-        return redirect(
-            url_for("interview")
-        )
-
-
-    return redirect(
-        url_for(
-            "candidate_requests"
+    conn.execute(
+        """
+        INSERT INTO notifications
+        (candidate_id, application_id, message, is_read)
+        VALUES (?, ?, ?, 0)
+        """,
+        (
+            session["user_id"],
+            None,
+            f"You {action}ed the recruiter {req['request_type']} request."
         )
     )
 
+    conn.commit()
+    conn.close()
+
+    # -----------------------------------------------------
+    # ACCEPT INTERVIEW REQUEST -> START SETTINGS PAGE
+    # -----------------------------------------------------
+    if (
+        action == "accept"
+        and req["request_type"] == "interview"
+    ):
+        return redirect(url_for("interview"))
+
+    return redirect(url_for("candidate_requests"))
+
 
 # =========================================================
-# OLD ACCEPT ROUTE
+# OLD ACCEPT / DECLINE COMPATIBILITY ROUTES
 # =========================================================
 
 @app.route(
     "/candidate/request/<int:request_id>/accept",
     methods=["POST"]
 )
-def accept_candidate_request(
-    request_id
-):
+def accept_candidate_request(request_id):
+    return respond_to_request(request_id, "accept")
 
-    return respond_to_request(
-        request_id,
-        "accept"
-    )
-
-
-# =========================================================
-# OLD DECLINE ROUTE
-# =========================================================
 
 @app.route(
     "/candidate/request/<int:request_id>/decline",
     methods=["POST"]
 )
-def decline_candidate_request(
-    request_id
-):
-
-    return respond_to_request(
-        request_id,
-        "decline"
-    )
+def decline_candidate_request(request_id):
+    return respond_to_request(request_id, "decline")
 
 
 # =========================================================
-# START INTERVIEW
+# START AI INTERVIEW
 # =========================================================
 
-@app.route(
-    "/interview",
-    methods=["GET", "POST"]
-)
+@app.route("/interview", methods=["GET", "POST"])
 def interview():
-
     check = candidate_required()
-
     if check:
-
         return check
 
-    filename, filepath = (
-        get_latest_resume()
-    )
+    filename, filepath = get_latest_resume()
 
-
+    # -----------------------------------------------------
+    # SETTINGS PAGE
+    # -----------------------------------------------------
     if request.method == "GET":
-
         return render_template(
             "interview.html",
-
             filename=filename,
-
-            resume_uploaded=
-            bool(filepath),
-
+            resume_uploaded=bool(filepath),
             error=None
         )
 
-
+    # -----------------------------------------------------
+    # CHECK RESUME
+    # -----------------------------------------------------
     if not filepath:
-
         return render_template(
             "interview.html",
-
             filename=None,
-
             resume_uploaded=False,
-
             error=(
-                "Please upload your resume "
-                "before starting the AI interview."
+                "Please upload your resume before starting "
+                "the AI interview."
             )
         )
 
+    # -----------------------------------------------------
+    # DURATION -> EXACT QUESTION COUNT
+    # -----------------------------------------------------
+    try:
+        duration = int(request.form.get("duration", 15))
+    except (TypeError, ValueError):
+        duration = 15
 
-    resume_text = extract_resume_text(
-        filepath
+    if duration == 15:
+        question_count = 10
+    elif duration == 20:
+        question_count = 20
+    elif duration == 30:
+        question_count = 30
+    else:
+        duration = 15
+        question_count = 10
+
+    interview_type = (
+        request.form.get("interview_type", "hr")
+        .strip()
+        .lower()
     )
 
+    if interview_type not in {"hr", "technical"}:
+        interview_type = "hr"
 
-    questions = (
-        generate_resume_interview_questions(
-            resume_text
+    # -----------------------------------------------------
+    # READ RESUME
+    # -----------------------------------------------------
+    try:
+        resume_text = extract_resume_text(filepath)
+    except Exception as error:
+        return render_template(
+            "interview.html",
+            filename=filename,
+            resume_uploaded=True,
+            error=f"Could not read resume: {error}"
+        )
+
+    if not resume_text:
+        return render_template(
+            "interview.html",
+            filename=filename,
+            resume_uploaded=True,
+            error=(
+                "Could not extract text from your resume. "
+                "Please upload a valid PDF or DOCX resume."
+            )
+        )
+
+    # -----------------------------------------------------
+    # CANCEL OLD ACTIVE INTERVIEW
+    # -----------------------------------------------------
+    conn = get_db()
+    conn.execute(
+        """
+        UPDATE active_interviews
+        SET status = 'cancelled'
+        WHERE candidate_id = ?
+        AND status = 'active'
+        """,
+        (session["user_id"],)
+    )
+    conn.commit()
+    conn.close()
+
+    # -----------------------------------------------------
+    # GENERATE FIRST QUESTION FROM RESUME
+    # -----------------------------------------------------
+    first_question, interaction_id = generate_first_interview_question(
+        resume_text,
+        interview_type,
+        question_count
+    )
+
+    # -----------------------------------------------------
+    # CREATE SERVER-SIDE ACTIVE INTERVIEW
+    # -----------------------------------------------------
+    start_time = time.time()
+    questions = [first_question]
+    answers = []
+    scores = []
+
+    conn = get_db()
+
+    cursor = conn.execute(
+        """
+        INSERT INTO active_interviews
+        (
+            candidate_id,
+            duration,
+            total_questions,
+            interview_type,
+            start_time,
+            current_index,
+            current_question,
+            questions,
+            answers,
+            scores,
+            interaction_id,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        """,
+        (
+            session["user_id"],
+            duration,
+            question_count,
+            interview_type,
+            start_time,
+            0,
+            first_question,
+            json.dumps(questions),
+            json.dumps(answers),
+            json.dumps(scores),
+            interaction_id
         )
     )
 
+    interview_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
 
-    if not questions:
+    # Store only the small ID in the Flask session.
+    # The full resume/questions/answers stay server-side.
+    session["interview_id"] = interview_id
 
-        questions = [
-
-            "Tell me about yourself.",
-
-            "What technical skills do you have?",
-
-            "Explain one project mentioned in your resume.",
-
-            "What was your contribution to your project?",
-
-            "Why should we hire you?"
-        ]
+    return redirect(url_for("interview_question"))
 
 
-    session[
-        "interview_questions"
-    ] = questions
+# =========================================================
+# INTERVIEW QUESTION
+# =========================================================
 
-    session[
-        "interview_answers"
-    ] = []
-
-    session[
-        "interview_scores"
-    ] = []
-
-    session[
-        "interview_index"
-    ] = 0
-
-
-    return redirect(
-        url_for(
-            "interview_question"
-        )
-    )
-@app.route(
-    "/interview/question",
-    methods=["GET", "POST"]
-)
+@app.route("/interview/question", methods=["GET", "POST"])
 def interview_question():
+    check = candidate_required()
+    if check:
+        return check
 
-    if "user_id" not in session:
+    interview_id = session.get("interview_id")
 
-        return redirect(
-            url_for("login")
+    if not interview_id:
+        return redirect(url_for("interview"))
+
+    conn = get_db()
+    interview_row = conn.execute(
+        """
+        SELECT *
+        FROM active_interviews
+        WHERE id = ?
+        AND candidate_id = ?
+        AND status = 'active'
+        """,
+        (
+            interview_id,
+            session["user_id"]
         )
+    ).fetchone()
+    conn.close()
 
-    questions = session.get(
-        "interview_questions",
-        []
+    if not interview_row:
+        session.pop("interview_id", None)
+        return redirect(url_for("interview"))
+
+    try:
+        questions = json.loads(interview_row["questions"] or "[]")
+    except Exception:
+        questions = []
+
+    try:
+        answers = json.loads(interview_row["answers"] or "[]")
+    except Exception:
+        answers = []
+
+    try:
+        scores = json.loads(interview_row["scores"] or "[]")
+    except Exception:
+        scores = []
+
+    total_questions = int(
+        interview_row["total_questions"] or 1
     )
 
-    answers = session.get(
-        "interview_answers",
-        []
+    current_index = int(
+        interview_row["current_index"] or 0
     )
 
-    scores = session.get(
-        "interview_scores",
-        []
-    )
-
-    index = session.get(
-        "interview_index",
-        0
-    )
-
-    # Interview duration in minutes
-    duration = session.get(
-        "interview_duration",
-        30
-    )
-
-    # Interview start time
-    start_time = session.get(
-        "interview_start_time"
-    )
-
-    # If interview data is missing,
-    # return to interview start page.
-    if not questions or start_time is None:
-
-        return redirect(
-            url_for("interview")
-        )
-
-    # Calculate total interview time
-    total_seconds = duration * 60
-
-    # Calculate elapsed time
+    # -----------------------------------------------------
+    # TIMER
+    # -----------------------------------------------------
     elapsed_seconds = (
-        time.time() - start_time
+        time.time()
+        - float(interview_row["start_time"])
     )
 
-    # Calculate remaining time
+    duration_seconds = (
+        int(interview_row["duration"])
+        * 60
+    )
+
     remaining_seconds = max(
         0,
-        int(
-            total_seconds -
-            elapsed_seconds
-        )
+        int(duration_seconds - elapsed_seconds)
     )
 
-    # If time has expired
+    # -----------------------------------------------------
+    # TIME EXPIRED
+    # -----------------------------------------------------
     if remaining_seconds <= 0:
-
-        session[
-            "interview_time_expired"
-        ] = True
-
-        return redirect(
-            url_for("interview_result")
+        return finish_interview(
+            session["user_id"],
+            interview_id
         )
 
-    # Check question limit
-    if index >= len(questions):
-
-        return redirect(
-            url_for("interview_result")
+    # -----------------------------------------------------
+    # CORRUPT/FINISHED STATE CHECK
+    # -----------------------------------------------------
+    if current_index >= len(questions):
+        return finish_interview(
+            session["user_id"],
+            interview_id
         )
 
-    current_question = questions[index]
+    current_question = questions[current_index]
 
-    # -------------------------------------------------
+    # -----------------------------------------------------
     # SUBMIT ANSWER
-    # -------------------------------------------------
-
+    # -----------------------------------------------------
     if request.method == "POST":
+        answer = request.form.get("answer", "").strip()
 
-        answer = request.form.get(
-            "answer",
-            ""
-        ).strip()
-
-        # Check browser timer
-        browser_time_expired = request.form.get(
-            "time_expired",
-            "0"
-        )
-
-        if browser_time_expired == "1":
-
-            session[
-                "interview_time_expired"
-            ] = True
-
-            return redirect(
-                url_for("interview_result")
-            )
-
-        # Check server-side timer again
+        # Check time again immediately when answer is submitted.
         elapsed_seconds = (
-            time.time() - start_time
+            time.time()
+            - float(interview_row["start_time"])
         )
 
-        remaining_seconds = max(
-            0,
-            int(
-                total_seconds -
-                elapsed_seconds
-            )
-        )
-
-        # Time expired
-        if remaining_seconds <= 0:
-
-            session[
-                "interview_time_expired"
-            ] = True
-
-            return redirect(
-                url_for("interview_result")
+        if elapsed_seconds >= duration_seconds:
+            return finish_interview(
+                session["user_id"],
+                interview_id
             )
 
-        # Empty answer
-        if not answer:
-
-            return render_template(
-                "interview_question.html",
-                question=current_question,
-                question_number=index + 1,
-                total_questions=len(questions),
-                remaining_seconds=remaining_seconds,
-                duration=duration,
-                error="Please enter your answer."
-            )
-
-        # Check answer
+        # Score current answer.
         score = check_interview_answer(
             current_question,
             answer
@@ -4252,237 +2773,263 @@ def interview_question():
         answers.append(answer)
         scores.append(score)
 
-        session[
-            "interview_answers"
-        ] = answers
+        next_index = current_index + 1
 
-        session[
-            "interview_scores"
-        ] = scores
-
-        session[
-            "interview_score"
-        ] = sum(scores)
-
-        # Move to next question
-        index += 1
-
-        session[
-            "interview_index"
-        ] = index
-
-        # All questions completed
-        if index >= len(questions):
-
-            total_score = sum(scores)
-
-            total_questions = len(
-                questions
-            )
-
-            percentage = int(
-                total_score /
-                total_questions *
-                100
-            )
-
-            if percentage >= 80:
-
-                message = (
-                    "Excellent interview performance!"
-                )
-
-            elif percentage >= 60:
-
-                message = (
-                    "Good performance. "
-                    "There is still some room "
-                    "for improvement."
-                )
-
-            elif percentage >= 40:
-
-                message = (
-                    "Average performance. "
-                    "Try to improve your "
-                    "technical explanations."
-                )
-
-            else:
-
-                message = (
-                    "Keep practicing and "
-                    "improve your interview answers."
-                )
-
-            # Save result
+        # -------------------------------------------------
+        # FINAL QUESTION
+        # -------------------------------------------------
+        if next_index >= total_questions:
             conn = get_db()
-
-            conn.execute("""
-                INSERT INTO interview_results
+            conn.execute(
+                """
+                UPDATE active_interviews
+                SET
+                    current_index = ?,
+                    answers = ?,
+                    scores = ?
+                WHERE id = ?
+                """,
                 (
-                    candidate_id,
-                    score,
-                    total,
-                    percentage,
-                    message,
-                    questions,
-                    answers,
-                    scores
+                    next_index,
+                    json.dumps(answers),
+                    json.dumps(scores),
+                    interview_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                session["user_id"],
-                total_score,
-                total_questions,
-                percentage,
-                message,
-                json.dumps(questions),
-                json.dumps(answers),
-                json.dumps(scores)
-            ))
-
+            )
             conn.commit()
             conn.close()
 
-            session[
-                "last_interview_score"
-            ] = total_score
-
-            session[
-                "last_interview_total"
-            ] = total_questions
-
-            session[
-                "last_interview_percentage"
-            ] = percentage
-
-            session[
-                "last_interview_message"
-            ] = message
-
-            return redirect(
-                url_for(
-                    "interview_result"
-                )
+            return finish_interview(
+                session["user_id"],
+                interview_id
             )
 
-        # Continue to next question
-        return redirect(
-            url_for(
-                "interview_question"
-            )
+        # -------------------------------------------------
+        # GENERATE NEXT FOLLOW-UP QUESTION
+        # -------------------------------------------------
+        next_question, next_interaction_id = generate_followup_question(
+            interview_row["interaction_id"],
+            answer,
+            interview_row["interview_type"],
+            next_index + 1,
+            total_questions
         )
 
-    # -------------------------------------------------
-    # DISPLAY CURRENT QUESTION
-    # -------------------------------------------------
+        questions.append(next_question)
 
+        # -------------------------------------------------
+        # SAVE SERVER-SIDE INTERVIEW STATE
+        # -------------------------------------------------
+        conn = get_db()
+        conn.execute(
+            """
+            UPDATE active_interviews
+            SET
+                current_index = ?,
+                current_question = ?,
+                questions = ?,
+                answers = ?,
+                scores = ?,
+                interaction_id = ?
+            WHERE id = ?
+            """,
+            (
+                next_index,
+                next_question,
+                json.dumps(questions),
+                json.dumps(answers),
+                json.dumps(scores),
+                next_interaction_id,
+                interview_id
+            )
+        )
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("interview_question"))
+
+    # -----------------------------------------------------
+    # SHOW CURRENT QUESTION
+    # -----------------------------------------------------
     return render_template(
         "interview_question.html",
         question=current_question,
-        question_number=index + 1,
-        total_questions=len(questions),
+        question_number=current_index + 1,
+        total_questions=total_questions,
         remaining_seconds=remaining_seconds,
-        duration=duration,
-        error=None
+        duration=int(interview_row["duration"]),
+        interview_type=interview_row["interview_type"]
     )
+
+
+# =========================================================
+# FINISH INTERVIEW
+# =========================================================
+
+def finish_interview(candidate_id, interview_id):
+    conn = get_db()
+
+    interview_row = conn.execute(
+        """
+        SELECT *
+        FROM active_interviews
+        WHERE id = ?
+        AND candidate_id = ?
+        """,
+        (interview_id, candidate_id)
+    ).fetchone()
+
+    if not interview_row:
+        conn.close()
+        session.pop("interview_id", None)
+        return redirect(url_for("interview"))
+
+    try:
+        questions = json.loads(interview_row["questions"] or "[]")
+    except Exception:
+        questions = []
+
+    try:
+        answers = json.loads(interview_row["answers"] or "[]")
+    except Exception:
+        answers = []
+
+    try:
+        scores = json.loads(interview_row["scores"] or "[]")
+    except Exception:
+        scores = []
+
+    total_questions = int(
+        interview_row["total_questions"]
+        or len(questions)
+        or 1
+    )
+
+    # Make sure all configured questions have a score/answer entry.
+    while len(scores) < total_questions:
+        scores.append(0)
+
+    while len(answers) < total_questions:
+        answers.append("")
+
+    total_score = sum(
+        max(0, min(5, int(score)))
+        for score in scores[:total_questions]
+    )
+
+    percentage = int(
+        (total_score / (total_questions * 5)) * 100
+    )
+
+    if percentage >= 80:
+        message = "Excellent interview performance!"
+    elif percentage >= 60:
+        message = (
+            "Good performance. There is still room for improvement."
+        )
+    elif percentage >= 40:
+        message = (
+            "Average performance. Keep improving your interview answers."
+        )
+    else:
+        message = "Keep practicing and improve your interview answers."
+
+    # Save result.
+    conn.execute(
+        """
+        INSERT INTO interview_results
+        (
+            candidate_id,
+            score,
+            total,
+            percentage,
+            message,
+            questions,
+            answers,
+            scores
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            candidate_id,
+            total_score,
+            total_questions,
+            percentage,
+            message,
+            json.dumps(questions[:total_questions]),
+            json.dumps(answers[:total_questions]),
+            json.dumps(scores[:total_questions])
+        )
+    )
+
+    # Mark active interview as completed. This prevents refreshing
+    # the old interview URL from creating another result.
+    conn.execute(
+        """
+        UPDATE active_interviews
+        SET status = 'completed'
+        WHERE id = ?
+        """,
+        (interview_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    # Keep only small values in the Flask cookie session.
+    session.pop("interview_id", None)
+    session["last_interview_score"] = total_score
+    session["last_interview_total"] = total_questions
+    session["last_interview_percentage"] = percentage
+    session["last_interview_message"] = message
+
+    return redirect(url_for("interview_result"))
+
+
 # =========================================================
 # INTERVIEW RESULT
 # =========================================================
 
-@app.route(
-    "/interview/result"
-)
+@app.route("/interview/result")
 def interview_result():
-
     check = candidate_required()
-
     if check:
-
         return check
 
-
-    score = session.get(
-        "last_interview_score",
-        0
-    )
-
-    total = session.get(
-        "last_interview_total",
-        0
-    )
-
-    percentage = session.get(
-        "last_interview_percentage",
-        0
-    )
-
-    message = session.get(
-        "last_interview_message",
-        ""
-    )
-
+    score = session.get("last_interview_score", 0)
+    total = session.get("last_interview_total", 0)
+    percentage = session.get("last_interview_percentage", 0)
+    message = session.get("last_interview_message", "")
 
     if not total:
-
         conn = get_db()
-
         result = conn.execute(
             """
             SELECT *
-
             FROM interview_results
-
             WHERE candidate_id = ?
-
             ORDER BY created_at DESC
-
             LIMIT 1
             """,
-            (
-                session["user_id"],
-            )
+            (session["user_id"],)
         ).fetchone()
-
         conn.close()
 
-
         if result:
-
-            score = (
-                result["score"]
-                or 0
-            )
-
-            total = (
-                result["total"]
-                or 0
-            )
-
-            percentage = (
-                result["percentage"]
-                or 0
-            )
-
+            score = result["score"] or 0
+            total = result["total"] or 0
+            percentage = result["percentage"] or 0
             message = (
                 result["message"]
-                or
-                result["feedback"]
-                or
-                ""
+                or result["feedback"]
+                or ""
             )
-
 
     return render_template(
         "interview_result.html",
-
         score=score,
-
         total=total,
-
         percentage=percentage,
-
         message=message
     )
 
@@ -4491,55 +3038,36 @@ def interview_result():
 # TEST GEMINI
 # =========================================================
 
-@app.route(
-    "/test_gemini"
-)
+@app.route("/test_gemini")
 def test_gemini():
-
     if gemini_client is None:
-
         return """
-        <h2>
-            Gemini is not configured.
-        </h2>
-
-        <p>
-            Configure GEMINI_API_KEY
-            in Vercel Environment Variables.
-        </p>
+        <h2>Gemini is not configured.</h2>
+        <p>Configure GEMINI_API_KEY in Vercel Environment Variables.</p>
         """
-
 
     result = ask_gemini(
-        """
-        Say hello and confirm that
-        HireSmart AI Gemini integration
-        is working.
-        """
+        "Say hello and confirm that HireSmart AI Gemini integration is working."
     )
 
-
     if not result:
-
         return """
-        <h2>
-            Gemini request failed.
-        </h2>
+        <h2>Gemini request failed.</h2>
+        <p>Check the server logs and GEMINI_API_KEY.</p>
         """
 
+    # Use simple HTML escaping without adding another dependency.
+    safe_result = (
+        result
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
 
     return f"""
-    <h2>
-        Gemini Integration Working ✅
-    </h2>
-
-    <p>
-        {result}
-    </p>
-
-    <a href="/">
-        Back to HireSmart AI
-    </a>
+    <h2>Gemini Integration Working ✅</h2>
+    <p>{safe_result}</p>
+    <a href="/">Back to HireSmart AI</a>
     """
 
 
@@ -4555,7 +3083,4 @@ create_table()
 # =========================================================
 
 if __name__ == "__main__":
-
-    app.run(
-        debug=True
-    )
+    app.run(debug=True)
