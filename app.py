@@ -75,7 +75,10 @@ if (
     and GEMINI_API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE"
 ):
     try:
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        gemini_client = genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options={"timeout": 30000}
+        )
         print("================================")
         print("Gemini client initialized successfully.")
         print("Model:", GEMINI_MODEL)
@@ -141,6 +144,23 @@ SKILLS_LIST = [
 # GEMINI HELPERS
 # =========================================================
 
+def fallback_answer_score(answer):
+    """Fast local fallback score from 0 to 5."""
+    word_count = len(answer.split())
+
+    if not answer.strip():
+        return 0
+    if word_count >= 60:
+        return 5
+    if word_count >= 35:
+        return 4
+    if word_count >= 15:
+        return 3
+    if word_count >= 5:
+        return 2
+    return 1
+
+
 def ask_gemini(prompt):
     if gemini_client is None:
         print("Gemini client is not initialized.")
@@ -179,31 +199,23 @@ def generate_first_interview_question(
         return fallback, None
 
     prompt = f"""
-You are conducting a professional job interview.
+You are conducting a professional {interview_type} job interview.
 
-INTERVIEW TYPE:
-{interview_type}
+The candidate has selected an interview with {total_questions} questions.
 
-TOTAL QUESTIONS:
-{total_questions}
+Candidate resume:
+{resume_text[:10000]}
 
-CANDIDATE RESUME:
-{resume_text[:30000]}
-
-Generate ONLY the FIRST interview question.
+Generate ONLY the first interview question.
 
 Rules:
-1. Base the question directly on the candidate's resume.
-2. For HR interviews, focus on experience, projects,
-   achievements, responsibilities, education and career.
-3. For Technical interviews, focus on technologies,
-   projects, implementation, programming, databases,
-   architecture and technical decisions.
-4. Ask exactly ONE question.
-5. Make it specific to the candidate.
-6. Do not number the question.
-7. Do not give an answer.
-8. Do not add explanations.
+- Ask exactly ONE question.
+- Base it on the candidate's resume.
+- HR: focus on experience, projects, achievements, responsibilities, education and career.
+- Technical: focus on technologies, projects, implementation, programming, databases, architecture and technical decisions.
+- Do not number the question.
+- Do not give an answer.
+- Do not add explanations.
 """
 
     try:
@@ -226,41 +238,59 @@ Rules:
         return fallback, None
 
 
-def generate_followup_question(
+def evaluate_answer_and_generate_followup(
     previous_interaction_id,
+    current_question,
     answer,
     interview_type,
-    question_number,
+    next_question_number,
     total_questions
 ):
-    fallback = "Can you explain that experience in more detail?"
+    """
+    Use ONE Gemini request to score the candidate answer and, when needed,
+    generate the next follow-up question. This avoids two sequential Gemini
+    calls for every submitted answer.
+    """
+
+    fallback_score = fallback_answer_score(answer)
+    fallback_question = "Can you explain that experience in more detail?"
 
     if gemini_client is None or not previous_interaction_id:
-        return fallback, previous_interaction_id
+        return fallback_score, fallback_question, previous_interaction_id
 
     prompt = f"""
-Continue the interview.
+You are evaluating a live {interview_type} job interview.
 
-Interview type:
-{interview_type}
-
-This is question {question_number} of {total_questions}.
-
-The candidate has just answered the previous question.
+Previous interview question:
+{current_question}
 
 Candidate answer:
 {answer}
 
-Generate ONLY the NEXT interview question.
+The next question will be question {next_question_number} of {total_questions}.
 
-Rules:
-1. Ask exactly ONE question.
-2. Make it a meaningful follow-up based on the candidate's answer.
-3. Keep it relevant to the candidate's resume and interview type.
-4. Do not repeat the previous question.
-5. Do not give an answer.
-6. Do not add explanations.
-7. Do not add numbering.
+Do BOTH tasks in one response:
+
+SCORE: <integer from 0 to 5>
+NEXT_QUESTION: <one interview question>
+
+Rules for SCORE:
+- 0 = no answer or completely irrelevant
+- 1 = very weak
+- 2 = basic
+- 3 = acceptable
+- 4 = strong
+- 5 = excellent
+
+Rules for NEXT_QUESTION:
+- Ask exactly ONE question.
+- It must naturally follow the candidate's answer.
+- Keep it relevant to the resume and {interview_type} interview.
+- Do not repeat the previous question.
+- Do not provide an answer.
+- Do not add explanations or numbering.
+
+Return ONLY these two lines.
 """
 
     try:
@@ -270,53 +300,47 @@ Rules:
             previous_interaction_id=previous_interaction_id
         )
 
-        question = (
+        text = (
             getattr(interaction, "output_text", "") or ""
         ).strip()
 
-        if not question:
-            question = fallback
+        score = fallback_score
+        question = fallback_question
 
-        return question, getattr(interaction, "id", previous_interaction_id)
+        for line in text.splitlines():
+            clean = line.strip()
+            upper = clean.upper()
+
+            if upper.startswith("SCORE:"):
+                try:
+                    score = int(
+                        float(
+                            clean.split(":", 1)[1].strip().split()[0]
+                        )
+                    )
+                    score = max(0, min(5, score))
+                except Exception:
+                    score = fallback_score
+
+            elif upper.startswith("NEXT_QUESTION:"):
+                value = clean.split(":", 1)[1].strip()
+                if value:
+                    question = value
+
+        return (
+            score,
+            question,
+            getattr(interaction, "id", previous_interaction_id)
+        )
 
     except Exception as error:
-        print("FOLLOW-UP QUESTION ERROR:", repr(error))
-        return fallback, previous_interaction_id
+        print("INTERVIEW SUBMIT GEMINI ERROR:", repr(error))
+        return fallback_score, fallback_question, previous_interaction_id
 
 
 def check_interview_answer(question, answer):
-    if not answer.strip():
-        return 0
-
-    prompt = f"""
-Rate this interview answer from 0 to 5.
-
-Return ONLY the integer score.
-
-Question:
-{question}
-
-Answer:
-{answer}
-"""
-
-    result = ask_gemini(prompt)
-
-    try:
-        first_token = result.strip().split()[0]
-        score = int(float(first_token))
-        return max(0, min(5, score))
-    except Exception:
-        word_count = len(answer.split())
-        if word_count >= 60:
-            return 5
-        if word_count >= 35:
-            return 4
-        if word_count >= 15:
-            return 3
-        if word_count >= 5:
-            return 2
-        return 1
+    """Fast local fallback kept for compatibility."""
+    return fallback_answer_score(answer)
 
 
 # =========================================================
@@ -2764,21 +2788,31 @@ def interview_question():
                 interview_id
             )
 
-        # Score current answer.
-        score = check_interview_answer(
-            current_question,
-            answer
-        )
-
-        answers.append(answer)
-        scores.append(score)
-
         next_index = current_index + 1
 
         # -------------------------------------------------
         # FINAL QUESTION
         # -------------------------------------------------
         if next_index >= total_questions:
+
+            # One Gemini call only: score the final answer.
+            if gemini_client is not None and interview_row["interaction_id"]:
+                final_score, _, final_interaction_id = evaluate_answer_and_generate_followup(
+                    interview_row["interaction_id"],
+                    current_question,
+                    answer,
+                    interview_row["interview_type"],
+                    next_index,
+                    total_questions
+                )
+                score = final_score
+            else:
+                score = fallback_answer_score(answer)
+                final_interaction_id = interview_row["interaction_id"]
+
+            answers.append(answer)
+            scores.append(score)
+
             conn = get_db()
             conn.execute(
                 """
@@ -2786,13 +2820,15 @@ def interview_question():
                 SET
                     current_index = ?,
                     answers = ?,
-                    scores = ?
+                    scores = ?,
+                    interaction_id = ?
                 WHERE id = ?
                 """,
                 (
                     next_index,
                     json.dumps(answers),
                     json.dumps(scores),
+                    final_interaction_id,
                     interview_id
                 )
             )
@@ -2805,15 +2841,21 @@ def interview_question():
             )
 
         # -------------------------------------------------
-        # GENERATE NEXT FOLLOW-UP QUESTION
+        # ONE GEMINI CALL FOR SCORE + FOLLOW-UP
         # -------------------------------------------------
-        next_question, next_interaction_id = generate_followup_question(
-            interview_row["interaction_id"],
-            answer,
-            interview_row["interview_type"],
-            next_index + 1,
-            total_questions
+        score, next_question, next_interaction_id = (
+            evaluate_answer_and_generate_followup(
+                interview_row["interaction_id"],
+                current_question,
+                answer,
+                interview_row["interview_type"],
+                next_index + 1,
+                total_questions
+            )
         )
+
+        answers.append(answer)
+        scores.append(score)
 
         questions.append(next_question)
 
