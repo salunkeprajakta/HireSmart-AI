@@ -122,11 +122,13 @@
             color: #444;
         }
 
+        /* BUTTON AREA */
         .button-area {
             text-align: center;
             margin-top: 25px;
         }
 
+        /* ALL BUTTONS BLUE */
         .button {
             display: inline-block;
             padding: 13px 25px;
@@ -136,18 +138,23 @@
             text-decoration: none;
             border-radius: 8px;
             font-weight: bold;
+            cursor: pointer;
         }
 
         .button:hover {
             background: #182f6b;
+            color: white;
         }
 
+        /* SECONDARY BUTTONS ALSO BLUE */
         .secondary {
-            background: #555;
+            background: #23438f;
+            color: white;
         }
 
         .secondary:hover {
-            background: #333;
+            background: #182f6b;
+            color: white;
         }
 
         @media (max-width: 700px) {
@@ -334,21 +341,20 @@
 
         <div class="button-area">
 
-    <a href="{{ url_for('upload_resume') }}"
-       class="button secondary">
-        Upload Another Resume
-    </a>
+            <a href="{{ url_for('upload_resume') }}"
+               class="button secondary">
+                Upload Another Resume
+            </a>
 
-    <a href="{{ url_for('recruiter_dashboard') }}"
-       class="button secondary">
-        Back to Dashboard
-    </a>
+            <a href="{{ url_for('recruiter_dashboard') }}"
+               class="button secondary">
+                Back to Dashboard
+            </a>
 
-    <a href="{{ url_for('interview') }}"
-       class="button">
-        🎤 Start AI Interview →
-    </a>
-
+            <a href="{{ url_for('interview') }}"
+               class="button">
+                🎤 Start AI Interview →
+            </a>
 
         </div>
 

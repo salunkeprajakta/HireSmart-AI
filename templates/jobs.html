@@ -98,6 +98,7 @@
             color: #155724;
         }
 
+        /* APPLY BUTTON */
         .apply-btn {
             display: inline-block;
             margin-top: 20px;
@@ -115,14 +116,21 @@
             background: #162d68;
         }
 
+        /* BACK TO DASHBOARD BUTTON */
         .back-btn {
             display: inline-block;
             margin-top: 10px;
             padding: 11px 22px;
-            background: #555;
+            background: #1f3c88;
             color: white;
             text-decoration: none;
             border-radius: 7px;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            background: #162d68;
+            color: white;
         }
 
         .no-jobs {
@@ -130,6 +138,41 @@
             padding: 30px;
             border-radius: 15px;
             text-align: center;
+        }
+
+        @media (max-width: 700px) {
+
+            .navbar {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .navbar a {
+                margin-left: 10px;
+                margin-right: 10px;
+            }
+
+            .container {
+                margin: 20px auto;
+                padding: 15px;
+            }
+
+            .job-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .match {
+                font-size: 18px;
+            }
+
+            .back-btn,
+            .apply-btn {
+                text-align: center;
+            }
         }
 
     </style>
