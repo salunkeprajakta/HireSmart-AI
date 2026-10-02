@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recruiter Requests - HireSmart AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            margin: 0;
+        }
+
+        .navbar {
+            background: #1f3c88;
+            color: white;
+            padding: 18px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f3c88;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 14px;
+            box-shadow: 0 3px 12px rgba(0,0,0,.08);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 7px 12px;
+            border-radius: 18px;
+            background: #eef2ff;
+            color: #1f3c88;
+            font-weight: bold;
+        }
+
+        .info {
+            margin: 9px 0;
+            color: #555;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 7px;
+            color: white !important;
+            text-decoration: none;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .accept {
+            background: #28a745;
+        }
+
+        .accept:hover {
+            background: #218838;
+        }
+
+        .decline {
+            background: #dc3545;
+        }
+
+        .decline:hover {
+            background: #c82333;
+        }
+
+        .back {
+            background: #1f3c88;
+        }
+
+        .back:hover {
+            background: #162d68;
+        }
+
+        .pending {
+            border-left: 5px solid #1f3c88;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <h2>HireSmart AI</h2>
+
+    <a href="/logout">
+        Logout
+    </a>
+</div>
+
+
+<div class="container">
+
+    <h1>📨 Recruiter Requests</h1>
+
+    <p>
+        Hello {{ name }}, recruiters can send you job and interview requests here.
+    </p>
+
+
+    {% if requests %}
+
+        {% for item in requests %}
+
+        <div class="card {% if item['status'] == 'Pending' %}pending{% endif %}">
+
+            <span class="tag">
+                {{ item['request_type']|title }} Request
+            </span>
+
+            <h2>
+                {{ item['recruiter_name'] }}
+            </h2>
+
+            <div class="info">
+                📧 {{ item['recruiter_email'] }}
+            </div>
+
+
+            {% if item['job_title'] %}
+
+                <div class="info">
+                    💼 <strong>Job:</strong>
+                    {{ item['job_title'] }}
+                </div>
+
+                <div class="info">
+                    🏢 <strong>Company:</strong>
+                    {{ item['company'] }}
+                </div>
+
+                <div class="info">
+                    📍 <strong>Location:</strong>
+                    {{ item['location'] }}
+                </div>
+
+            {% endif %}
+
+
+            {% if item['message'] %}
+
+                <div class="info">
+                    💬 <strong>Message:</strong>
+                    {{ item['message'] }}
+                </div>
+
+            {% endif %}
+
+
+            <div class="info">
+                <strong>Status:</strong>
+                {{ item['status'] }}
+            </div>
+
+            <div class="info">
+                📅 {{ item['created_at'] }}
+            </div>
+
+
+            {% if item['status'] == 'Pending' %}
+
+                <form
+                    method="POST"
+                    action="{{ url_for('respond_to_request',
+                                       request_id=item['id'],
+                                       action='accept') }}"
+                    style="display:inline;"
+                >
+
+                    <button
+                        class="button accept"
+                        type="submit"
+                    >
+                        ✅ Accept
+                    </button>
+
+                </form>
+
+
+                <form
+                    method="POST"
+                    action="{{ url_for('respond_to_request',
+                                       request_id=item['id'],
+                                       action='decline') }}"
+                    style="display:inline;"
+                >
+
+                    <button
+                        class="button decline"
+                        type="submit"
+                    >
+                        ❌ Decline
+                    </button>
+
+                </form>
+
+            {% endif %}
+
+        </div>
+
+        {% endfor %}
+
+
+    {% else %}
+
+        <div class="card">
+
+            <h2>
+                No Requests
+            </h2>
+
+            <p>
+                No recruiter requests yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+    <a
+        class="button back"
+        href="/dashboard"
+    >
+        ← Back to Dashboard
+    </a>
+
+</div>
+
+</body>
+</html>
