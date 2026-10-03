@@ -3330,6 +3330,7 @@ def resume_analysis():
             filename
 
         }
+        print("RESUME INFORMATION:", resume_information)
 
 
         # -------------------------------------------------
