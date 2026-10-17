@@ -1,4 +1,4 @@
-# 🤖 HireSmart AI – AI-Powered Recruitment & Candidate Management Platform
+uu# 🤖 HireSmart AI – AI-Powered Recruitment & Candidate Management Platform
 
 HireSmart AI is an AI-powered web-based recruitment and candidate management platform designed to simplify and improve the hiring process for both candidates and recruiters.
 
@@ -1038,17 +1038,14 @@ HireSmart AI is developed as an academic software project to demonstrate the pra
 
 # 🌐 Project Links
 
-### GitHub Repository
+###GitHub Repository
 
-[https://github.com/salunkeprajakta/HireSmart-AI](https://github.com/salunkeprajakta/HireSmart-AI)
+"HireSmart AI on GitHub" 
+(https://github.com/salunkeprajakta/HireSmart-AI)
 
-### Live Deployment
+Live Deployment
 
-# HireSmart AI
-
-🔗https://hire-smart-qc4q58knm-salunkeprajakta.vercel.app/
-
----
+🚀 "Open HireSmart AI" (https://hire-smart-ai-puce.vercel.app/)
 
 # 👩‍💻 Author
 
