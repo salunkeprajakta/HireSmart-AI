@@ -168,24 +168,22 @@
     <div class="cards">
 
 
-        <!-- PROFILE -->
+        
+<a class="dashboard-action-button"
+   href="{{ url_for('profile') }}">
+    Create Profile
+</a>
 
-        <div class="card">
+<a class="dashboard-action-button"
+   href="{{ url_for('view_profile') }}">
+    View Profile
+</a>
 
-            <h3>👤 My Profile</h3>
+<a class="dashboard-action-button"
+   href="{{ url_for('profile') }}">
+    Update Profile
+</a>
 
-            <p>
-                Manage your profile and skills.
-            </p>
-
-            {% if profile_complete %}
-            <a class="dashboard-action-button" href="{{ url_for('view_profile') }}" role="button">View Profile</a>
-            <a class="dashboard-action-button" href="{{ url_for('profile') }}" role="button">Update Profile</a>
-            {% else %}
-            <a class="dashboard-action-button" href="{{ url_for('profile') }}" role="button">Create Profile</a>
-            {% endif %}
-
-        </div>
 
 
         <!-- UPLOAD RESUME -->
