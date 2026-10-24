@@ -1,0 +1,84 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Profile - HireSmart AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6fb;
+            padding: 25px;
+        }
+        .profile-card {
+            max-width: 700px;
+            margin: 30px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,.1);
+        }
+        h1 { color: #23418c; }
+        .field {
+            padding: 14px 0;
+            border-bottom: 1px solid #eee;
+            overflow-wrap: anywhere;
+        }
+        .label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .button {
+            display: inline-block;
+            background: #23418c;
+            color: white;
+            padding: 12px 18px;
+            margin: 20px 8px 0 0;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-card">
+        <h1>My Profile</h1>
+
+        <div class="field">
+            <span class="label">Name</span>
+            {{ user["name"] or "Not provided" }}
+        </div>
+
+        <div class="field">
+            <span class="label">Email</span>
+            {{ user["email"] or "Not provided" }}
+        </div>
+
+        <div class="field">
+            <span class="label">Phone</span>
+            {{ user["phone"] or "Not provided" }}
+        </div>
+
+        <div class="field">
+            <span class="label">Education</span>
+            {{ user["education"] or "Not provided" }}
+        </div>
+
+        <div class="field">
+            <span class="label">Skills</span>
+            {{ user["skills"] or "Not provided" }}
+        </div>
+
+        <div class="field">
+            <span class="label">Experience</span>
+            {{ user["experience"] or "Not provided" }}
+        </div>
+
+        <a class="button" href="{{ url_for('profile') }}">Update Profile</a>
+        <a class="button" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+    </div>
+</body>
+</html>
+```
