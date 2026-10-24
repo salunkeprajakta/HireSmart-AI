@@ -69,6 +69,21 @@
             text-decoration: none;
         }
 
+        .dashboard-action-button {
+            display: inline-block;
+            margin-top: 10px;
+            background: #1f3c88;
+            color: #fff !important;
+            padding: 11px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .dashboard-action-button:hover {
+            background: #162d68;
+        }
+
         button {
             background: #1f3c88;
             color: white;
@@ -163,11 +178,12 @@
                 Manage your profile and skills.
             </p>
 
-            <a href="{{ url_for('profile') }}">
-                <button type="button">
-                    View Profile
-                </button>
-            </a>
+            {% if profile_complete %}
+            <a class="dashboard-action-button" href="{{ url_for('view_profile') }}" role="button">View Profile</a>
+            <a class="dashboard-action-button" href="{{ url_for('profile') }}" role="button">Update Profile</a>
+            {% else %}
+            <a class="dashboard-action-button" href="{{ url_for('profile') }}" role="button">Create Profile</a>
+            {% endif %}
 
         </div>
 
