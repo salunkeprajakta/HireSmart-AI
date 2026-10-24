@@ -1729,6 +1729,18 @@ def dashboard():
 
     conn = get_db()
 
+    # Decide whether the candidate has completed the basic profile.
+    profile_row = conn.execute(
+        "SELECT phone, education, skills, experience FROM users WHERE id = ?",
+        (session["user_id"],)
+    ).fetchone()
+    # A candidate is considered to have a saved profile once any profile field is saved.
+    profile_complete = bool(
+        profile_row and any(
+            str(profile_row[field] or "").strip()
+            for field in ("phone", "education", "skills", "experience")
+        )
+    )
 
     notification_count = conn.execute(
 
@@ -1794,7 +1806,9 @@ def dashboard():
         notification_count,
 
         request_count=
-        request_count
+        request_count,
+
+        profile_complete=profile_complete
 
     )
 
@@ -2069,132 +2083,49 @@ def recruiter_jobs():
 # RECRUITER - CANDIDATES
 # =========================================================
 
-@app.route(
-    "/recruiter/candidates"
-)
+@app.route("/recruiter/candidates")
 def recruiter_candidates():
-
     check = recruiter_required()
-
     if check:
-
         return check
 
-
-    recruiter_id = session[
-        "user_id"
-    ]
-
-
+    recruiter_id = session["user_id"]
     conn = get_db()
+    try:
+        # Return one row per application so job, company, date and status
+        # always refer to the same application (not a different latest application).
+        candidates = conn.execute(
+            """
+            SELECT
+                u.id AS candidate_id,
+                u.name,
+                u.email,
+                u.phone,
+                u.education,
+                u.skills,
+                u.experience,
+                u.resume_score,
+                u.resume_skills,
+                u.resume_analysis,
+                u.resume_suggestions,
+                a.id AS application_id,
+                a.status AS status,
+                a.applied_at AS applied_at,
+                j.title AS job_title,
+                j.company AS company
+            FROM applications a
+            JOIN users u ON u.id = a.candidate_id
+            JOIN jobs j ON j.id = a.job_id
+            WHERE LOWER(u.role) = 'candidate'
+              AND j.recruiter_id = ?
+            ORDER BY a.applied_at DESC
+            """,
+            (recruiter_id,)
+        ).fetchall()
+    finally:
+        conn.close()
 
-
-    candidates = conn.execute(
-
-        """
-        SELECT
-
-            u.id AS candidate_id,
-
-            u.name,
-
-            u.email,
-
-            u.phone,
-
-            u.education,
-
-            u.skills,
-
-            u.experience,
-
-            u.resume_score,
-
-            u.resume_skills,
-
-            u.resume_analysis,
-
-            u.resume_suggestions,
-
-            (
-                SELECT a.id
-
-                FROM applications a
-
-                JOIN jobs j
-                ON a.job_id = j.id
-
-                WHERE a.candidate_id = u.id
-
-                AND j.recruiter_id = ?
-
-                ORDER BY a.applied_at DESC
-
-                LIMIT 1
-
-            ) AS application_id,
-
-            (
-                SELECT a.status
-
-                FROM applications a
-
-                JOIN jobs j
-                ON a.job_id = j.id
-
-                WHERE a.candidate_id = u.id
-
-                AND j.recruiter_id = ?
-
-                ORDER BY a.applied_at DESC
-
-                LIMIT 1
-
-            ) AS application_status,
-
-            (
-                SELECT rr.status
-
-                FROM recruiter_requests rr
-
-                WHERE rr.candidate_id = u.id
-
-                AND rr.recruiter_id = ?
-
-                ORDER BY rr.created_at DESC
-
-                LIMIT 1
-
-            ) AS latest_request_status
-
-        FROM users u
-
-        WHERE LOWER(u.role)
-            = 'candidate'
-
-        ORDER BY u.name ASC
-
-        """,
-
-        (
-            recruiter_id,
-            recruiter_id,
-            recruiter_id
-        )
-
-    ).fetchall()
-
-
-    conn.close()
-
-
-    return render_template(
-
-        "recruiter_candidates.html",
-
-        candidates=candidates
-
-    )
+    return render_template("recruiter_candidates.html", candidates=candidates)
 
 
 # =========================================================
@@ -2464,6 +2395,17 @@ def recruiter_candidate_resume(
 # =========================================================
 # PROFILE
 # =========================================================
+
+@app.route("/profile/view")
+def view_profile():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+    conn.close()
+    return render_template("profile_view.html", user=user)
+
 
 @app.route(
     "/profile",
